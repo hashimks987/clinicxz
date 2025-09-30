@@ -1,0 +1,662 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClinicXZ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Alpine.js script loaded with DEFER attribute -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { font-family: 'Outfit', sans-serif; }
+        h1, h2, h3, .font-display { font-family: 'Playfair Display', serif; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-900 text-gray-300" x-data="clinicApp" x-cloak>
+
+    <!-- Global Error Banner -->
+    <template x-if="appError">
+        <div class="fixed top-5 right-5 bg-red-900/80 backdrop-blur-sm border border-red-500 text-red-300 px-4 py-3 rounded-lg shadow-lg z-50" role="alert">
+            <strong class="font-bold">Error:</strong>
+            <span class="block sm:inline" x-text="appError"></span>
+            <span class="absolute top-0 bottom-0 right-0 px-4 py-3" @click="appError = null">
+                <svg class="fill-current h-6 w-6 text-red-400" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
+            </span>
+        </div>
+    </template>
+
+    <!-- Confirmation Modal -->
+    <template x-if="confirmationModal.open">
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" @click.self="confirmationModal.open = false">
+            <div class="w-full max-w-sm p-6 bg-slate-800 rounded-xl shadow-2xl border border-slate-700">
+                <h3 class="text-lg font-bold text-gray-200" x-text="confirmationModal.title"></h3>
+                <p class="mt-2 text-sm text-gray-400" x-text="confirmationModal.message"></p>
+                <div class="mt-6 flex justify-end space-x-4">
+                    <button @click="confirmationModal.open = false" class="px-4 py-2 text-sm font-medium text-gray-300 bg-slate-700 rounded-lg hover:bg-slate-600">Cancel</button>
+                    <button @click="confirmationModal.onConfirm()" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Delete</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Main Container -->
+    <div class="min-h-screen">
+        <!-- Login View -->
+        <template x-if="!auth.token">
+            <div class="flex items-center justify-center min-h-screen bg-slate-900">
+                <div class="w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-xl shadow-2xl shadow-purple-500/20 border border-slate-700">
+                    <h1 class="text-4xl font-bold text-center font-display text-gray-200">ClinicXZ</h1>
+                    <p class="text-center text-gray-400">Welcome back, please login to your account.</p>
+                    <form @submit.prevent="login()" class="space-y-6">
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-400 mb-1">Username</label>
+                            <input type="text" x-model="auth.username" id="username" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="therapist1" required>
+                        </div>
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-400 mb-1">Password</label>
+                            <input type="password" x-model="auth.password" id="password" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="password123" required>
+                        </div>
+                        <template x-if="auth.error">
+                            <p class="text-sm text-red-400" x-text="auth.error"></p>
+                        </template>
+                        <button type="submit" class="w-full px-6 py-3 text-white font-bold rounded-lg shadow-lg shadow-purple-500/30 transition-all transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800">Login</button>
+                    </form>
+                </div>
+            </div>
+        </template>
+
+        <!-- Authenticated App View -->
+        <template x-if="auth.token">
+            <div class="md:flex h-screen w-full">
+                <!-- Sidebar -->
+                <div :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}" class="fixed inset-y-0 left-0 w-64 bg-slate-800 shadow-lg flex flex-col border-r border-slate-700 transform md:relative md:translate-x-0 transition-transform duration-200 ease-in-out z-30">
+                    <div class="p-6 flex justify-between items-center">
+                        <h2 class="text-2xl font-bold font-display text-gray-200">ClinicXZ</h2>
+                        <button @click="sidebarOpen = false" class="md:hidden text-gray-400">&times;</button>
+                    </div>
+                    <nav class="flex-1 px-4 space-y-2">
+                        <a href="#" @click.prevent="changeView('dashboard')" :class="{'bg-purple-900/50 text-purple-300': view === 'dashboard'}" class="flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-slate-700 hover:text-gray-300">Dashboard</a>
+                        <a href="#" @click.prevent="changeView('patientList')" :class="{'bg-purple-900/50 text-purple-300': view === 'patientList'}" class="flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-slate-700 hover:text-gray-300">All Patients</a>
+                        <a href="#" @click.prevent="changeView('schedule')" :class="{'bg-purple-900/50 text-purple-300': view === 'schedule'}" class="flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-slate-700 hover:text-gray-300">Schedule</a>
+                        <a href="#" @click.prevent="changeView('addPatient')" :class="{'bg-purple-900/50 text-purple-300': view === 'addPatient'}" class="flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-slate-700 hover:text-gray-300">Add New Patient</a>
+                    </nav>
+                    <div class="p-4 border-t border-slate-700">
+                        <button @click="logout()" class="w-full text-left flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-red-900/50 hover:text-red-300">Logout</button>
+                    </div>
+                </div>
+                
+                <!-- Main Content -->
+                <main class="flex-1 p-4 sm:p-8 overflow-y-auto bg-slate-900">
+                    <button @click="sidebarOpen = true" class="md:hidden mb-4 p-2 rounded-md bg-slate-800 text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
+
+                    <!-- Dashboard View -->
+                    <div x-show="view === 'dashboard'">
+                        <h1 class="text-3xl font-bold font-display text-gray-100">Dashboard</h1>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                            <div class="p-6 bg-slate-800 rounded-lg shadow-lg border border-slate-700">
+                                <h3 class="text-lg font-semibold text-gray-400">Total Patients</h3>
+                                <p class="text-4xl font-bold mt-2 text-purple-400" x-text="patients.list.length"></p>
+                            </div>
+                            <div class="p-6 bg-slate-800 rounded-lg shadow-lg border border-slate-700">
+                                <h3 class="text-lg font-semibold text-gray-400">Upcoming Appointments</h3>
+                                <p class="text-4xl font-bold mt-2 text-purple-400" x-text="upcomingSchedules.length"></p>
+                            </div>
+                        </div>
+                         <div class="mt-8">
+                            <h2 class="text-2xl font-bold font-display text-gray-200">Recent Patient Visits</h2>
+                             <div class="mt-4 bg-slate-800 rounded-lg shadow-lg border border-slate-700">
+                                <ul class="divide-y divide-slate-700">
+                                    <template x-for="visit in recentVisits" :key="visit.patient_id">
+                                        <li class="p-4 flex justify-between items-center">
+                                            <span x-text="visit.patient_name"></span>
+                                            <span class="text-sm text-gray-500" x-text="formatDate(visit.visit_date)"></span>
+                                        </li>
+                                    </template>
+                                     <template x-if="recentVisits.length === 0">
+                                        <li class="p-4 text-center text-gray-500">No recent visits recorded.</li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Patient List View -->
+                    <div x-show="view === 'patientList'">
+                        <h1 class="text-3xl font-bold font-display text-gray-100">All Patients</h1>
+                        <div class="mt-4">
+                            <input type="text" x-model="patientSearch" placeholder="Search by name..." class="w-full max-w-sm px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div class="mt-6 bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-x-auto">
+                           <table class="w-full whitespace-nowrap">
+                               <thead class="bg-slate-700">
+                                   <tr>
+                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Name</th>
+                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Age</th>
+                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Core Reason</th>
+                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Actions</th>
+                                   </tr>
+                               </thead>
+                               <tbody class="divide-y divide-slate-700">
+                                   <template x-for="patient in filteredPatients" :key="patient.id">
+                                       <tr class="hover:bg-slate-700/50">
+                                           <td class="p-4 text-gray-300" x-text="patient.name"></td>
+                                           <td class="p-4 text-gray-300" x-text="patient.age"></td>
+                                           <td class="p-4 text-gray-300" x-text="patient.core_reason"></td>
+                                           <td class="p-4 space-x-2">
+                                               <button @click="viewPatient(patient.id)" class="px-3 py-1 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700">View</button>
+                                               <button @click="confirmDeletePatient(patient.id)" class="px-3 py-1 text-sm text-white bg-red-600 rounded-md hover:bg-red-700">Delete</button>
+                                           </td>
+                                       </tr>
+                                   </template>
+                                    <template x-if="filteredPatients.length === 0">
+                                        <tr><td colspan="4" class="p-4 text-center text-gray-500">No patients found.</td></tr>
+                                    </template>
+                               </tbody>
+                           </table>
+                        </div>
+                    </div>
+
+                    <!-- Schedule View -->
+                     <div x-show="view === 'schedule'">
+                        <h1 class="text-3xl font-bold font-display text-gray-100">Schedule</h1>
+                        
+                        <!-- Add Schedule Form -->
+                        <div class="mt-6 p-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
+                            <h3 class="text-xl font-bold font-display text-purple-400">Add New Appointment</h3>
+                           <form @submit.prevent="addSchedule()" class="mt-4 space-y-4 sm:flex sm:items-end sm:space-y-0 sm:space-x-4">
+                               <div class="flex-grow">
+                                   <label class="block text-sm font-medium text-gray-400 mb-1">Name / Title</label>
+                                   <input type="text" x-model="newSchedule.attendee_name" placeholder="e.g., Team Meeting" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required>
+                               </div>
+                               <div>
+                                   <label class="block text-sm font-medium text-gray-400 mb-1">Appointment Time</label>
+                                   <input type="datetime-local" x-model="newSchedule.appointment_time" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required>
+                               </div>
+                               <div class="flex-shrink-0">
+                                   <button type="submit" class="w-full px-6 py-2 text-white font-bold rounded-lg shadow-lg shadow-purple-500/30 transition-all transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800">Add</button>
+                               </div>
+                           </form>
+                        </div>
+
+                        <div class="mt-8 bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-x-auto">
+                            <table class="w-full whitespace-nowrap">
+                                <thead class="bg-slate-700">
+                                   <tr>
+                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Name / Title</th>
+                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Time</th>
+                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Status</th>
+                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Actions</th>
+                                   </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-700">
+                                    <template x-for="schedule in schedules" :key="schedule.id">
+                                        <tr class="hover:bg-slate-700/50">
+                                            <td class="p-4 text-gray-300" x-text="schedule.attendee_name"></td>
+                                            <td class="p-4 text-gray-300" x-text="formatDateTime(schedule.appointment_time)"></td>
+                                            <td class="p-4">
+                                                <span :class="{
+                                                    'bg-blue-900 text-blue-300': schedule.status === 'Scheduled',
+                                                    'bg-green-900 text-green-300': schedule.status === 'Completed',
+                                                    'bg-red-900 text-red-300': schedule.status === 'Canceled',
+                                                }" class="px-2 py-1 text-xs font-medium rounded-full" x-text="schedule.status"></span>
+                                            </td>
+                                            <td class="p-4 space-x-2 text-sm">
+                                                <button x-show="schedule.status === 'Scheduled'" @click="updateScheduleStatus(schedule.id, 'Completed')" class="text-green-400 hover:underline">Complete</button>
+                                                <button x-show="schedule.status === 'Scheduled'" @click="updateScheduleStatus(schedule.id, 'Canceled')" class="text-red-400 hover:underline">Cancel</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <template x-if="schedules.length === 0">
+                                        <tr><td colspan="4" class="p-4 text-center text-gray-500">No appointments scheduled.</td></tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Add Patient View -->
+                     <div x-show="view === 'addPatient'">
+                        <h1 class="text-3xl font-bold font-display text-gray-100">Add a New Patient</h1>
+                         <form @submit.prevent="addPatient()" class="mt-6 p-6 sm:p-8 bg-slate-800 border border-slate-700 rounded-lg shadow-lg space-y-8">
+                            
+                            <!-- Personal Information Section -->
+                            <section>
+                                <h2 class="text-xl font-semibold border-b border-slate-600 pb-2 mb-4 text-purple-400">Personal Information</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Full Name</label><input type="text" x-model="newPatient.name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required></div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Age</label><input type="number" x-model.number="newPatient.age" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required></div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Place</label><input type="text" x-model="newPatient.place" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Phone Number</label><input type="tel" x-model="newPatient.phone_number" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Education</label><input type="text" x-model="newPatient.education" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                </div>
+                            </section>
+
+                            <!-- Clinical Information Section -->
+                             <section>
+                                <h2 class="text-xl font-semibold border-b border-slate-600 pb-2 mb-4 text-purple-400">Clinical Information</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-400 mb-1">Core Reason</label>
+                                        <select x-model="newPatient.core_reason" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                            <option>OCD</option><option>Anxiety</option><option>Depression</option><option>Phobia</option><option>Other</option>
+                                        </select>
+                                    </div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">When did it start?</label><input type="text" x-model="newPatient.issue_start_date" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., 2 years ago"></div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-400 mb-1">Severity</label>
+                                        <select x-model="newPatient.severity" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                            <option>Low</option><option>Medium</option><option>Strong</option>
+                                        </select>
+                                    </div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Previous Treatments</label><input type="text" x-model="newPatient.previous_treatments" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., Psychiatrist, Medicine"></div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Other Current Medications</label><input type="text" x-model="newPatient.other_meds" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                     <div><label class="block text-sm font-medium text-gray-400 mb-1">Other Diseases</label><input type="text" x-model="newPatient.other_diseases" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                </div>
+                            </section>
+
+                             <!-- Family & Work Section -->
+                             <section>
+                                <h2 class="text-xl font-semibold border-b border-slate-600 pb-2 mb-4 text-purple-400">Family & Work</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Partner's Name (if applicable)</label><input type="text" x-model="newPatient.partner_name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Mother's Name</label><input type="text" x-model="newPatient.mother_name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Number of Children</label><input type="number" x-model.number="newPatient.kids_count" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                    <div class="flex items-center flex-wrap gap-x-6 gap-y-2 col-span-full">
+                                        <div class="flex items-center space-x-2"><input type="checkbox" id="is_married" x-model="newPatient.is_married" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="is_married" class="text-sm text-gray-400">Married?</label></div>
+                                        <div class="flex items-center space-x-2"><input type="checkbox" id="has_kids" x-model="newPatient.has_kids" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="has_kids" class="text-sm text-gray-400">Has Kids?</label></div>
+                                        <div class="flex items-center space-x-2"><input type="checkbox" id="has_siblings" x-model="newPatient.has_siblings" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="has_siblings" class="text-sm text-gray-400">Has Siblings?</label></div>
+                                        <div class="flex items-center space-x-2"><input type="checkbox" id="is_working" x-model="newPatient.is_working" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="is_working" class="text-sm text-gray-400">Is Working?</label></div>
+                                        <div class="flex items-center space-x-2"><input type="checkbox" id="is_genetic" x-model="newPatient.is_genetic" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="is_genetic" class="text-sm text-gray-400">Genetic?</label></div>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                             <!-- Session Mode -->
+                             <section>
+                                <h2 class="text-xl font-semibold border-b border-slate-600 pb-2 mb-4 text-purple-400">Session Details</h2>
+                                 <div>
+                                     <label class="block text-sm font-medium text-gray-400 mb-1">Preferred Mode</label>
+                                      <select x-model="newPatient.consultation_mode" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                          <option>Online</option><option>Offline</option>
+                                      </select>
+                                 </div>
+                             </section>
+
+                             <div class="flex justify-end pt-4">
+                                 <button type="submit" class="px-6 py-2 text-white font-bold rounded-lg shadow-lg shadow-purple-500/30 transition-all transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800">Save Patient</button>
+                             </div>
+                         </form>
+                    </div>
+
+                    <!-- Patient Detail View -->
+                    <div x-show="view === 'patientDetail' && patients.current">
+                        <div class="flex justify-between items-center">
+                            <h1 class="text-2xl sm:text-3xl font-bold font-display text-gray-100" x-text="patients.current.name"></h1>
+                            <button @click="changeView('patientList')" class="text-purple-400 hover:underline text-sm sm:text-base">← Back to List</button>
+                        </div>
+                        <div class="mt-6">
+                           <!-- Tabs -->
+                            <div class="border-b border-slate-700">
+                                <nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto" aria-label="Tabs">
+                                    <a href="#" @click.prevent="patients.activeTab = 'profile'" :class="{'border-purple-500 text-purple-400': patients.activeTab === 'profile', 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600': patients.activeTab !== 'profile'}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Profile & Info</a>
+                                    <a href="#" @click.prevent="patients.activeTab = 'progress'" :class="{'border-purple-500 text-purple-400': patients.activeTab === 'progress', 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600': patients.activeTab !== 'progress'}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Core Issues</a>
+                                    <a href="#" @click.prevent="patients.activeTab = 'visits'" :class="{'border-purple-500 text-purple-400': patients.activeTab === 'visits', 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600': patients.activeTab !== 'visits'}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Visit History</a>
+                                </nav>
+                            </div>
+                            
+                            <!-- Tab Content -->
+                            <div class="py-6">
+                                 <!-- Profile Tab -->
+                                <div x-show="patients.activeTab === 'profile'">
+                                   <div class="p-6 sm:p-8 bg-slate-800 border border-slate-700 rounded-lg shadow-lg space-y-6">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+                                            <template x-for="field in profileFields" :key="field.key">
+                                                <div class="p-4 bg-slate-700/50 rounded-lg">
+                                                    <h4 class="font-semibold text-gray-400" x-text="field.label"></h4>
+                                                    <p class="text-gray-200" x-text="getPatientField(field.key)"></p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                         <p class="mt-4 text-gray-500 text-xs">Full editable profile view coming soon.</p>
+                                   </div>
+                                </div>
+                                <!-- Progress Tab -->
+                                <div x-show="patients.activeTab === 'progress'">
+                                    <div class="p-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
+                                        <h3 class="text-xl font-bold font-display text-purple-400" x-text="`Issues related to: ${patients.current.core_reason}`"></h3>
+                                        <form @submit.prevent="addSubIssue()" class="sm:flex items-center space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
+                                            <input type="text" x-model="newSubIssue.name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Add new sub-issue (e.g., Compulsive checking)">
+                                            <button type="submit" class="w-full sm:w-auto px-6 py-2 text-white font-bold rounded-lg shadow-md transition-transform transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 whitespace-nowrap">Add Issue</button>
+                                        </form>
+                                        <div class="mt-6 space-y-4">
+                                            <template x-for="issue in patients.current.sub_issues" :key="issue.id">
+                                                <div>
+                                                    <div class="flex justify-between items-center">
+                                                        <span class="font-medium text-gray-300" x-text="issue.name"></span>
+                                                        <div class="flex items-center space-x-2">
+                                                            <span class="text-sm text-gray-400" x-text="issue.progress_percentage + '% cured'"></span>
+                                                            <button @click="deleteSubIssue(issue.id)" class="text-red-500 hover:text-red-400">&times;</button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mt-1 w-full bg-slate-700 rounded-full h-2.5">
+                                                        <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2.5 rounded-full" :style="`width: ${issue.progress_percentage}%`"></div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Visits Tab -->
+                                <div x-show="patients.activeTab === 'visits'">
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                        <!-- Add Visit Form -->
+                                        <div class="p-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
+                                            <h3 class="text-xl font-bold font-display text-purple-400">Add New Visit</h3>
+                                            <form @submit.prevent="addVisit()" class="space-y-4 mt-4">
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-400 mb-1">Visit Description / Notes</label>
+                                                    <textarea x-model="newVisit.description" rows="4" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                                                </div>
+                                                <div>
+                                                    <h4 class="text-md font-semibold text-gray-300">Update Progress</h4>
+                                                    <div class="space-y-3 mt-2">
+                                                        <template x-for="(issue, index) in patients.current.sub_issues" :key="issue.id">
+                                                            <div>
+                                                                <label x-text="issue.name" class="block text-sm font-medium text-gray-400 mb-1"></label>
+                                                                <input type="range" min="0" max="100" x-model.number="newVisit.progress_updates[index].progress_percentage" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                                                                <div class="text-right text-sm text-gray-400" x-text="newVisit.progress_updates[index].progress_percentage + '%'"></div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                                <div class="flex justify-end">
+                                                    <button type="submit" class="px-6 py-2 text-white font-bold rounded-lg shadow-lg shadow-purple-500/30 transition-all transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800">Save Visit</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        <!-- Past Visits List -->
+                                        <div class="p-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
+                                            <h3 class="text-xl font-bold font-display text-purple-400">Past Visits</h3>
+                                            <div class="mt-4 space-y-4 max-h-96 overflow-y-auto">
+                                                <template x-for="visit in patients.current.visits.slice().reverse()" :key="visit.id">
+                                                    <div class="p-4 border border-slate-700 rounded-lg">
+                                                        <p class="font-bold text-sm text-gray-400" x-text="formatDate(visit.visit_date)"></p>
+                                                        <p class="mt-1 text-gray-300" x-text="visit.description"></p>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </template>
+    </div>
+    
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('clinicApp', () => ({
+                view: 'dashboard', 
+                sidebarOpen: false,
+                appError: null,
+                patientSearch: '',
+                auth: {
+                    username: '', password: '',
+                    token: (() => { try { return localStorage.getItem('clinicxz_token'); } catch (e) { return null; } })(),
+                    error: null,
+                },
+                patients: { list: [], current: null, activeTab: 'profile' },
+                schedules: [],
+                recentVisits: [],
+                confirmationModal: {
+                    open: false, title: 'Confirm Deletion',
+                    message: 'Are you sure you want to delete this patient?',
+                    onConfirm: () => {}
+                },
+                profileFields: [
+                    { key: 'name', label: 'Full Name' }, { key: 'age', label: 'Age' },
+                    { key: 'phone_number', label: 'Phone' }, { key: 'place', label: 'Place' },
+                    { key: 'core_reason', label: 'Core Reason' }, { key: 'severity', label: 'Severity' },
+                    { key: 'consultation_mode', label: 'Mode' }, { key: 'issue_start_date', 'label': 'Issue Started' },
+                    { key: 'partner_name', label: 'Partner' }, { key: 'mother_name', label: 'Mother' },
+                    { key: 'kids_count', label: 'Children' }, { key: 'education', label: 'Education' },
+                    { key: 'previous_treatments', label: 'Previous Treatments' },
+                    { key: 'other_meds', label: 'Other Medications' }, { key: 'other_diseases', label: 'Other Diseases' },
+                    { key: 'is_married', label: 'Married' }, { key: 'has_kids', label: 'Has Kids' },
+                    { key: 'has_siblings', label: 'Has Siblings' },
+                    { key: 'is_working', label: 'Is Working' }, { key: 'is_genetic', label: 'Is Genetic' },
+                ],
+                newPatient: {
+                    name: '', age: null, place: '', phone_number: '', education: '',
+                    core_reason: 'OCD', issue_start_date: '', severity: 'Low', 
+                    previous_treatments: '', other_meds: '', other_diseases: '',
+                    partner_name: '', mother_name: '',
+                    is_married: false, has_siblings: false, has_kids: false, kids_count: 0, 
+                    is_genetic: false, is_working: false, consultation_mode: 'Offline',
+                },
+                newSubIssue: { name: '' },
+                newVisit: { description: '', progress_updates: [] },
+                newSchedule: { attendee_name: '', appointment_time: '' },
+                
+                init() {
+                    if (this.auth.token) { 
+                        this.fetchPatients();
+                        this.fetchSchedules();
+                        this.fetchRecentVisits();
+                    }
+                },
+                
+                get filteredPatients() {
+                    if (!this.patientSearch.trim()) return this.patients.list;
+                    return this.patients.list.filter(p => 
+                        p.name.toLowerCase().includes(this.patientSearch.toLowerCase())
+                    );
+                },
+                
+                get upcomingSchedules() {
+                    return this.schedules.filter(s => s.status === 'Scheduled');
+                },
+
+                // --- HELPERS ---
+                getPatientField(key) {
+                    if (!this.patients.current) return 'N/A';
+                    const value = this.patients.current[key];
+                    if (typeof value === 'boolean') { return value ? 'Yes' : 'No'; }
+                    return value || 'N/A';
+                },
+                formatDate(isoString) {
+                    if (!isoString) return '';
+                    return new Date(isoString).toLocaleDateString();
+                },
+                formatDateTime(isoString) {
+                    if (!isoString) return '';
+                    return new Date(isoString).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+                },
+
+                // --- API HELPERS ---
+                async apiFetch(url, options = {}) {
+                    this.appError = null;
+                    options.headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.auth.token}`, ...options.headers };
+                    try {
+                        const response = await fetch(url, options);
+                        if (response.status === 401) { this.logout(); return null; }
+                        if (!response.ok) {
+                            const err = await response.json();
+                            let errorMessage = 'An unknown error occurred.';
+                            if (err.detail) {
+                                if (typeof err.detail === 'string') { errorMessage = err.detail; } 
+                                else if (Array.isArray(err.detail)) { errorMessage = err.detail.map(e => `${e.loc.join(' -> ')}: ${e.msg}`).join('; '); }
+                                else { errorMessage = JSON.stringify(err.detail); }
+                            }
+                            throw new Error(errorMessage);
+                        }
+                        if (response.status === 204) return true;
+                        return await response.json();
+                    } catch (error) {
+                        console.error('API Fetch Error:', error);
+                        this.appError = error.message; 
+                        return null;
+                    }
+                },
+
+                // --- AUTH ---
+                async login() {
+                    this.auth.error = null;
+                    const formData = new FormData();
+                    formData.append('username', this.auth.username);
+                    formData.append('password', this.auth.password);
+                    try {
+                        const response = await fetch('/token', { method: 'POST', body: formData });
+                        if (!response.ok) {
+                             const errData = await response.json();
+                             throw new Error(errData.detail || 'Login failed');
+                        }
+                        const data = await response.json();
+                        this.auth.token = data.access_token;
+                        localStorage.setItem('clinicxz_token', this.auth.token);
+                        this.auth.username = ''; this.auth.password = '';
+                        this.init();
+                    } catch (error) { this.auth.error = error.message; }
+                },
+                logout() {
+                    this.auth.token = null;
+                    localStorage.removeItem('clinicxz_token');
+                    window.location.reload();
+                },
+                
+                // --- VIEW MANAGEMENT ---
+                changeView(newView) { this.view = newView; this.sidebarOpen = false; },
+
+                // --- PATIENTS ---
+                async fetchPatients() {
+                    const data = await this.apiFetch('/api/patients');
+                    if (data) this.patients.list = data;
+                },
+                async addPatient() {
+                    const newPatientData = await this.apiFetch('/api/patients', { method: 'POST', body: JSON.stringify(this.newPatient) });
+                    if(newPatientData) {
+                        this.fetchPatients();
+                        this.changeView('patientList');
+                        this.newPatient = this.getNewPatientModel();
+                    }
+                },
+                getNewPatientModel() {
+                     return {
+                        name: '', age: null, place: '', phone_number: '', education: '',
+                        core_reason: 'OCD', issue_start_date: '', severity: 'Low', 
+                        previous_treatments: '', other_meds: '', other_diseases: '',
+                        partner_name: '', mother_name: '',
+                        is_married: false, has_siblings: false, has_kids: false, kids_count: 0, 
+                        is_genetic: false, is_working: false, consultation_mode: 'Offline',
+                    };
+                },
+                async viewPatient(id) {
+                    const data = await this.apiFetch(`/api/patients/${id}`);
+                    if (data) {
+                        this.patients.current = data;
+                        this.patients.activeTab = 'profile';
+                        this.prepareNewVisitForm();
+                        this.changeView('patientDetail');
+                    }
+                },
+                confirmDeletePatient(id) {
+                    this.confirmationModal.onConfirm = () => this.deletePatient(id);
+                    this.confirmationModal.open = true;
+                },
+                async deletePatient(id) {
+                    this.confirmationModal.open = false;
+                    const success = await this.apiFetch(`/api/patients/${id}`, { method: 'DELETE' });
+                    if (success) {
+                        this.fetchPatients();
+                        this.fetchSchedules();
+                        if (this.view === 'patientDetail' && this.patients.current && this.patients.current.id === id) {
+                            this.changeView('patientList');
+                        }
+                    }
+                },
+
+                // --- SUB ISSUES ---
+                async addSubIssue() {
+                    if (!this.newSubIssue.name.trim()) return;
+                    const data = await this.apiFetch(`/api/patients/${this.patients.current.id}/subissues`, { method: 'POST', body: JSON.stringify({ name: this.newSubIssue.name }) });
+                    if (data) {
+                        this.patients.current.sub_issues.push(data);
+                        this.newSubIssue.name = '';
+                        this.prepareNewVisitForm();
+                    }
+                },
+                async deleteSubIssue(id) {
+                    const success = await this.apiFetch(`/api/subissues/${id}`, { method: 'DELETE' });
+                    if (success) {
+                        this.patients.current.sub_issues = this.patients.current.sub_issues.filter(i => i.id !== id);
+                        this.prepareNewVisitForm();
+                    }
+                },
+
+                // --- VISITS ---
+                prepareNewVisitForm() {
+                    this.newVisit.description = '';
+                    this.newVisit.progress_updates = this.patients.current.sub_issues.map(issue => ({
+                        sub_issue_id: issue.id,
+                        progress_percentage: issue.progress_percentage
+                    }));
+                },
+                async addVisit() {
+                    const data = await this.apiFetch(`/api/patients/${this.patients.current.id}/visits`, { method: 'POST', body: JSON.stringify(this.newVisit) });
+                    if (data) { 
+                        this.viewPatient(this.patients.current.id);
+                        this.fetchRecentVisits(); 
+                    }
+                },
+                async fetchRecentVisits() {
+                    const data = await this.apiFetch('/api/visits/recent');
+                    if (data) this.recentVisits = data;
+                },
+
+                // --- SCHEDULES ---
+                async fetchSchedules() {
+                    const data = await this.apiFetch('/api/schedules');
+                    if (data) this.schedules = data;
+                },
+                async addSchedule() {
+                    if (!this.newSchedule.appointment_time || !this.newSchedule.attendee_name.trim()) {
+                        this.appError = "Please provide a name/title and select an appointment time.";
+                        return;
+                    }
+                    const data = await this.apiFetch(`/api/schedules`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            attendee_name: this.newSchedule.attendee_name,
+                            appointment_time: new Date(this.newSchedule.appointment_time).toISOString(),
+                            status: 'Scheduled'
+                        })
+                    });
+                    if(data){
+                        this.fetchSchedules();
+                        this.newSchedule.attendee_name = '';
+                        this.newSchedule.appointment_time = '';
+                    }
+                },
+                async updateScheduleStatus(scheduleId, newStatus) {
+                    const data = await this.apiFetch(`/api/schedules/${scheduleId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    if (data) {
+                        this.fetchSchedules();
+                    }
+                }
+            }));
+        });
+    </script>
+</body>
+</html>
