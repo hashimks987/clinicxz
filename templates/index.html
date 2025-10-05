@@ -1,662 +1,656 @@
- <!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClinicXZ</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
-    <!-- Alpine.js script loaded with DEFER attribute -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Outfit', sans-serif; }
-        h1, h2, h3, .font-display { font-family: 'Playfair Display', serif; }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Playfair Display', serif; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
-<body class="bg-slate-900 text-gray-300" x-data="clinicApp" x-cloak>
+<body class="h-full text-slate-200" x-data="clinicApp()" x-cloak>
 
-    <!-- Global Error Banner -->
-    <template x-if="appError">
-        <div class="fixed top-5 right-5 bg-red-900/80 backdrop-blur-sm border border-red-500 text-red-300 px-4 py-3 rounded-lg shadow-lg z-50" role="alert">
-            <strong class="font-bold">Error:</strong>
-            <span class="block sm:inline" x-text="appError"></span>
-            <span class="absolute top-0 bottom-0 right-0 px-4 py-3" @click="appError = null">
-                <svg class="fill-current h-6 w-6 text-red-400" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
-            </span>
-        </div>
-    </template>
+    <div x-show="notification.show" 
+         class="fixed top-5 right-5 z-50 p-4 rounded-md text-white shadow-lg"
+         :class="{ 'bg-green-500': notification.type === 'success', 'bg-red-500': notification.type === 'error' }"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-x-full"
+         x-transition:enter-end="opacity-100 transform translate-x-0"
+         x-transition:leave="transition ease-in duration-300"
+         x-transition:leave-start="opacity-100 transform translate-x-0"
+         x-transition:leave-end="opacity-0 transform translate-x-full">
+        <p x-text="notification.message"></p>
+    </div>
 
-    <!-- Confirmation Modal -->
-    <template x-if="confirmationModal.open">
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" @click.self="confirmationModal.open = false">
-            <div class="w-full max-w-sm p-6 bg-slate-800 rounded-xl shadow-2xl border border-slate-700">
-                <h3 class="text-lg font-bold text-gray-200" x-text="confirmationModal.title"></h3>
-                <p class="mt-2 text-sm text-gray-400" x-text="confirmationModal.message"></p>
-                <div class="mt-6 flex justify-end space-x-4">
-                    <button @click="confirmationModal.open = false" class="px-4 py-2 text-sm font-medium text-gray-300 bg-slate-700 rounded-lg hover:bg-slate-600">Cancel</button>
-                    <button @click="confirmationModal.onConfirm()" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Delete</button>
-                </div>
+    <div x-show="!isAuthenticated" class="flex min-h-full items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-md space-y-8">
+            <div>
+                <svg class="mx-auto h-12 w-auto text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>                  
+                <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-white">Sign in to ClinicXZ</h2>
             </div>
-        </div>
-    </template>
-
-    <!-- Main Container -->
-    <div class="min-h-screen">
-        <!-- Login View -->
-        <template x-if="!auth.token">
-            <div class="flex items-center justify-center min-h-screen bg-slate-900">
-                <div class="w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-xl shadow-2xl shadow-purple-500/20 border border-slate-700">
-                    <h1 class="text-4xl font-bold text-center font-display text-gray-200">ClinicXZ</h1>
-                    <p class="text-center text-gray-400">Welcome back, please login to your account.</p>
-                    <form @submit.prevent="login()" class="space-y-6">
-                        <div>
-                            <label for="username" class="block text-sm font-medium text-gray-400 mb-1">Username</label>
-                            <input type="text" x-model="auth.username" id="username" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="therapist1" required>
-                        </div>
-                        <div>
-                            <label for="password" class="block text-sm font-medium text-gray-400 mb-1">Password</label>
-                            <input type="password" x-model="auth.password" id="password" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="password123" required>
-                        </div>
-                        <template x-if="auth.error">
-                            <p class="text-sm text-red-400" x-text="auth.error"></p>
-                        </template>
-                        <button type="submit" class="w-full px-6 py-3 text-white font-bold rounded-lg shadow-lg shadow-purple-500/30 transition-all transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800">Login</button>
-                    </form>
-                </div>
-            </div>
-        </template>
-
-        <!-- Authenticated App View -->
-        <template x-if="auth.token">
-            <div class="md:flex h-screen w-full">
-                <!-- Sidebar -->
-                <div :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}" class="fixed inset-y-0 left-0 w-64 bg-slate-800 shadow-lg flex flex-col border-r border-slate-700 transform md:relative md:translate-x-0 transition-transform duration-200 ease-in-out z-30">
-                    <div class="p-6 flex justify-between items-center">
-                        <h2 class="text-2xl font-bold font-display text-gray-200">ClinicXZ</h2>
-                        <button @click="sidebarOpen = false" class="md:hidden text-gray-400">&times;</button>
+            <form class="mt-8 space-y-6" @submit.prevent="login">
+                <div class="space-y-4 rounded-md">
+                    <div>
+                        <label for="username" class="sr-only">Username</label>
+                        <input id="username" type="text" x-model="credentials.username" required class="w-full bg-slate-800 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition" placeholder="Username">
                     </div>
-                    <nav class="flex-1 px-4 space-y-2">
-                        <a href="#" @click.prevent="changeView('dashboard')" :class="{'bg-purple-900/50 text-purple-300': view === 'dashboard'}" class="flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-slate-700 hover:text-gray-300">Dashboard</a>
-                        <a href="#" @click.prevent="changeView('patientList')" :class="{'bg-purple-900/50 text-purple-300': view === 'patientList'}" class="flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-slate-700 hover:text-gray-300">All Patients</a>
-                        <a href="#" @click.prevent="changeView('schedule')" :class="{'bg-purple-900/50 text-purple-300': view === 'schedule'}" class="flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-slate-700 hover:text-gray-300">Schedule</a>
-                        <a href="#" @click.prevent="changeView('addPatient')" :class="{'bg-purple-900/50 text-purple-300': view === 'addPatient'}" class="flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-slate-700 hover:text-gray-300">Add New Patient</a>
-                    </nav>
-                    <div class="p-4 border-t border-slate-700">
-                        <button @click="logout()" class="w-full text-left flex items-center px-4 py-2 text-gray-400 rounded-lg hover:bg-red-900/50 hover:text-red-300">Logout</button>
+                    <div>
+                        <label for="password" class="sr-only">Password</label>
+                        <input id="password" type="password" x-model="credentials.password" required class="w-full bg-slate-800 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition" placeholder="Password">
                     </div>
                 </div>
-                
-                <!-- Main Content -->
-                <main class="flex-1 p-4 sm:p-8 overflow-y-auto bg-slate-900">
-                    <button @click="sidebarOpen = true" class="md:hidden mb-4 p-2 rounded-md bg-slate-800 text-gray-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                <div x-show="loginError" class="text-red-400 text-sm" x-text="loginError"></div>
+                <div>
+                    <button type="submit" class="group relative flex w-full justify-center px-4 py-3 rounded-md font-semibold transition-all duration-300 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-purple-500 hover:shadow-lg hover:shadow-purple-500/40">
+                        Sign in
                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-                    <!-- Dashboard View -->
-                    <div x-show="view === 'dashboard'">
-                        <h1 class="text-3xl font-bold font-display text-gray-100">Dashboard</h1>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                            <div class="p-6 bg-slate-800 rounded-lg shadow-lg border border-slate-700">
-                                <h3 class="text-lg font-semibold text-gray-400">Total Patients</h3>
-                                <p class="text-4xl font-bold mt-2 text-purple-400" x-text="patients.list.length"></p>
-                            </div>
-                            <div class="p-6 bg-slate-800 rounded-lg shadow-lg border border-slate-700">
-                                <h3 class="text-lg font-semibold text-gray-400">Upcoming Appointments</h3>
-                                <p class="text-4xl font-bold mt-2 text-purple-400" x-text="upcomingSchedules.length"></p>
-                            </div>
+    <div x-show="isAuthenticated">
+        <aside :class="{ 'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen }" class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform sm:translate-x-0 bg-slate-800 border-r border-slate-700">
+            <div class="h-full px-3 py-4 overflow-y-auto">
+                <a href="#" @click.prevent="setView('dashboard')" class="flex items-center ps-2.5 mb-5">
+                    <svg class="h-8 w-auto text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>                      
+                    <span class="self-center text-2xl font-semibold whitespace-nowrap text-white ml-2" style="font-family: 'Playfair Display', serif;">ClinicXZ</span>
+                </a>
+                <ul class="space-y-2 font-medium">
+                    <li><a href="#" @click.prevent="setView('dashboard')" :class="{'bg-purple-600 text-white': currentView === 'dashboard', 'text-slate-300 hover:bg-slate-700': currentView !== 'dashboard'}" class="flex items-center p-2 rounded-lg group transition-colors"><span class="ms-3">Dashboard</span></a></li>
+                    <li><a href="#" @click.prevent="setView('allPatients')" :class="{'bg-purple-600 text-white': currentView === 'allPatients', 'text-slate-300 hover:bg-slate-700': currentView !== 'allPatients'}" class="flex items-center p-2 rounded-lg group transition-colors"><span class="ms-3">All Patients</span></a></li>
+                    <li><a href="#" @click.prevent="setView('addPatient')" :class="{'bg-purple-600 text-white': currentView === 'addPatient', 'text-slate-300 hover:bg-slate-700': currentView !== 'addPatient'}" class="flex items-center p-2 rounded-lg group transition-colors"><span class="ms-3">Add New Patient</span></a></li>
+                    <li><a href="#" @click.prevent="setView('schedule')" :class="{'bg-purple-600 text-white': currentView === 'schedule', 'text-slate-300 hover:bg-slate-700': currentView !== 'schedule'}" class="flex items-center p-2 rounded-lg group transition-colors"><span class="ms-3">Schedule</span></a></li>
+                </ul>
+                <div class="absolute bottom-4 left-3 right-3">
+                    <button @click="logout" class="w-full px-4 py-2 rounded-md font-semibold transition-all duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <div class="sm:ml-64 p-4 md:p-6 lg:p-8">
+            <div class="sm:hidden flex justify-between items-center mb-6">
+                <button @click="sidebarOpen = !sidebarOpen" class="text-slate-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+                <h1 class="text-xl font-bold" x-text="pageTitle"></h1>
+            </div>
+
+            <main x-show="currentView === 'dashboard'" x-init="if(isAuthenticated) getDashboardStats()">
+                <h1 class="text-3xl font-bold text-white mb-8">Dashboard</h1>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-slate-800 p-6 rounded-lg border border-slate-700"><h3 class="text-slate-400 text-sm font-medium">Total Patients</h3><p class="text-3xl font-bold text-white" x-text="dashboard.total_patients"></p></div>
+                    <div class="bg-slate-800 p-6 rounded-lg border border-slate-700"><h3 class="text-slate-400 text-sm font-medium">Upcoming Appointments</h3><p class="text-3xl font-bold text-white" x-text="dashboard.upcoming_appointments"></p></div>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white mb-4">Recent Patient Visits</h2>
+                    <div class="bg-slate-800 rounded-lg border border-slate-700">
+                        <ul class="divide-y divide-slate-700">
+                            <template x-for="visit in dashboard.recent_patient_visits" :key="visit.name"><li class="p-4 flex justify-between items-center"><span class="font-semibold" x-text="visit.name"></span><span class="text-sm text-slate-400" x-text="formatDate(visit.last_visit)"></span></li></template>
+                            <template x-if="!dashboard.recent_patient_visits || dashboard.recent_patient_visits.length === 0"><li class="p-6 text-center text-slate-400">No recent visits found.</li></template>
+                        </ul>
+                    </div>
+                </div>
+            </main>
+
+            <main x-show="currentView === 'allPatients'" x-init="if(isAuthenticated) getAllPatients()">
+                <h1 class="text-3xl font-bold text-white mb-8">All Patients</h1>
+                <div class="mb-6"><input type="text" x-model="patientSearch" placeholder="Search by name or phone..." class="w-full max-w-sm bg-slate-800 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-300">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-700"><tr><th scope="col" class="px-6 py-3">Name</th><th scope="col" class="px-6 py-3">Phone</th><th scope="col" class="px-6 py-3">Core Reason</th><th scope="col" class="px-6 py-3 text-right">Actions</th></tr></thead>
+                        <tbody>
+                            <template x-for="patient in filteredPatients" :key="patient.id"><tr class="border-b border-slate-700 hover:bg-slate-700/50"><td class="px-6 py-4 font-medium text-white" x-text="patient.full_name"></td><td class="px-6 py-4" x-text="patient.phone_number"></td><td class="px-6 py-4" x-text="patient.core_reason"></td><td class="px-6 py-4 flex items-center justify-end gap-2"><button @click="viewPatient(patient.id)" class="px-3 py-1 rounded-md font-semibold transition-all duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600 text-xs">View</button><button @click="confirmDeletePatient(patient.id, patient.full_name)" class="px-3 py-1 rounded-md font-semibold transition-all duration-200 bg-red-600 text-white hover:bg-red-700 text-xs">Delete</button></td></tr></template>
+                             <template x-if="filteredPatients.length === 0"><tr><td colspan="4" class="text-center py-8 text-slate-400">No patients found.</td></tr></template>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+
+            <main x-show="currentView === 'addPatient'">
+                <h1 class="text-3xl font-bold text-white mb-8">Add New Patient</h1>
+                <form @submit.prevent="addPatient()" class="space-y-8" x-if="editablePatient">
+                    <div class="p-6 bg-slate-800 rounded-lg border border-slate-700 space-y-6">
+                        <h3 class="text-xl font-bold text-white border-b border-slate-600 pb-3 mb-6">Personal Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div><label class="block mb-2 text-sm font-medium">Full Name <span class="text-red-500">*</span></label><input type="text" x-model="editablePatient.full_name" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                            <div><label class="block mb-2 text-sm font-medium">Phone Number <span class="text-red-500">*</span></label><input type="text" x-model="editablePatient.phone_number" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                            <div><label class="block mb-2 text-sm font-medium">Age</label><input type="number" x-model.number="editablePatient.age" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                            <div><label class="block mb-2 text-sm font-medium">Place</label><input type="text" x-model="editablePatient.place" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                            <div><label class="block mb-2 text-sm font-medium">Father's Name</label><input type="text" x-model="editablePatient.father_name" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                            <div><label class="block mb-2 text-sm font-medium">School Class Studied</label><input type="text" x-model="editablePatient.school_class_studied" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                            <div><label class="block mb-2 text-sm font-medium">Madrasa Class/Level Studied</label><input type="text" x-model="editablePatient.madrasa_class_studied" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
                         </div>
-                         <div class="mt-8">
-                            <h2 class="text-2xl font-bold font-display text-gray-200">Recent Patient Visits</h2>
-                             <div class="mt-4 bg-slate-800 rounded-lg shadow-lg border border-slate-700">
-                                <ul class="divide-y divide-slate-700">
-                                    <template x-for="visit in recentVisits" :key="visit.patient_id">
-                                        <li class="p-4 flex justify-between items-center">
-                                            <span x-text="visit.patient_name"></span>
-                                            <span class="text-sm text-gray-500" x-text="formatDate(visit.visit_date)"></span>
-                                        </li>
-                                    </template>
-                                     <template x-if="recentVisits.length === 0">
-                                        <li class="p-4 text-center text-gray-500">No recent visits recorded.</li>
-                                    </template>
-                                </ul>
+                    </div>
+                     <div class="p-6 bg-slate-800 rounded-lg border border-slate-700 space-y-6">
+                        <h3 class="text-xl font-bold text-white border-b border-slate-600 pb-3 mb-6">Marital & Family Status</h3>
+                        <div class="flex items-center space-x-3"><input type="checkbox" id="add_is_married" x-model="editablePatient.is_married" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="add_is_married">Is Married?</label></div>
+                        <div x-show="editablePatient.is_married" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div><label class="block mb-2 text-sm font-medium">Husband's Name</label><input type="text" x-model="editablePatient.husband_name" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                            <div><label class="block mb-2 text-sm font-medium">Husband's Job</label><input type="text" x-model="editablePatient.husband_job" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                        </div>
+                        <div><label class="block mb-2 text-sm font-medium">Number of Kids</label><input type="number" x-model.number="editablePatient.kids_count" @input="updateKidsArray()" class="w-full max-w-xs bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                        <div x-show="editablePatient.kids_count > 0" class="space-y-3">
+                            <h4 class="text-sm font-semibold text-slate-300">Kid Details</h4>
+                            <template x-for="(kid, index) in editablePatient.kids" :key="index">
+                                <div class="flex items-center gap-4 p-3 bg-slate-900/50 rounded-md">
+                                    <span class="font-medium text-slate-300">Kid <span x-text="index + 1"></span>:</span>
+                                    <select x-model="kid.sex" class="w-1/3 bg-slate-800 border border-slate-700 text-white rounded-md p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"><option value="">Sex...</option><option value="Male">Male</option><option value="Female">Female</option></select>
+                                    <input type="number" x-model.number="kid.age" placeholder="Age" class="w-1/3 bg-slate-800 border border-slate-700 text-white rounded-md p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                     <div class="p-6 bg-slate-800 rounded-lg border border-slate-700 space-y-6">
+                        <h3 class="text-xl font-bold text-white border-b border-slate-600 pb-3 mb-6">Clinical & Other Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-3"><input type="checkbox" id="add_is_working" x-model="editablePatient.is_working" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="add_is_working">Is currently working?</label></div>
+                                <div class="flex items-center space-x-3"><input type="checkbox" id="add_has_siblings" x-model="editablePatient.has_siblings" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="add_has_siblings">Has siblings?</label></div>
+                                <div x-show="editablePatient.has_siblings" class="flex items-center space-x-3 ml-6"><input type="checkbox" id="add_siblings_have_issues" x-model="editablePatient.siblings_have_issues" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="add_siblings_have_issues">Do they have similar issues?</label></div>
+                                <div class="flex items-center space-x-3"><input type="checkbox" id="add_is_genetic" x-model="editablePatient.is_genetic" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="add_is_genetic">Is it genetic?</label></div>
+                                <div x-show="editablePatient.is_genetic" class="ml-6"><label class="block mb-2 text-sm font-medium">Name of relative with genetic link</label><input type="text" x-model="editablePatient.genetic_relative_name" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                            </div>
+                            <div class="space-y-6">
+                                <div><label class="block mb-2 text-sm font-medium">Core Reason (e.g., OCD, Anxiety)</label><input type="text" x-model="editablePatient.core_reason" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                <div><label class="block mb-2 text-sm font-medium">When it started?</label><input type="text" x-model="editablePatient.when_it_started" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                <div>
+                                    <label class="block mb-2 text-sm font-medium">Previously sought help from?</label>
+                                    <div class="space-y-3 mt-2">
+                                        <div class="flex gap-4 flex-wrap"><label class="flex items-center gap-2"><input type="checkbox" value="Psychologist" x-model="editablePatient.previously_sought_help" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Psychologist</label><label class="flex items-center gap-2"><input type="checkbox" value="Psychiatrist" x-model="editablePatient.previously_sought_help" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Psychiatrist</label><label class="flex items-center gap-2"><input type="checkbox" value="Spiritual" x-model="editablePatient.previously_sought_help" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Spiritual</label></div>
+                                        <div><label class="block mb-2 text-sm font-medium">Other:</label><input type="text" x-model="editablePatient.previously_sought_help_other" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                    </div>
+                                </div>
+                                <div><label class="block mb-2 text-sm font-medium">Medicine Status</label><select x-model="editablePatient.medicine_status" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"><option value="">Select...</option><option value="I did take medicine">I did take medicine</option><option value="I am taking medicine now">I am taking medicine now</option></select></div>
+                                <div><label class="block mb-2 text-sm font-medium">Other Medications</label><input type="text" x-model="editablePatient.other_medications" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                <div><label class="block mb-2 text-sm font-medium">Other Diseases</label><input type="text" x-model="editablePatient.other_diseases" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Patient List View -->
-                    <div x-show="view === 'patientList'">
-                        <h1 class="text-3xl font-bold font-display text-gray-100">All Patients</h1>
-                        <div class="mt-4">
-                            <input type="text" x-model="patientSearch" placeholder="Search by name..." class="w-full max-w-sm px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        </div>
-                        <div class="mt-6 bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-x-auto">
-                           <table class="w-full whitespace-nowrap">
-                               <thead class="bg-slate-700">
-                                   <tr>
-                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Name</th>
-                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Age</th>
-                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Core Reason</th>
-                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Actions</th>
-                                   </tr>
-                               </thead>
-                               <tbody class="divide-y divide-slate-700">
-                                   <template x-for="patient in filteredPatients" :key="patient.id">
-                                       <tr class="hover:bg-slate-700/50">
-                                           <td class="p-4 text-gray-300" x-text="patient.name"></td>
-                                           <td class="p-4 text-gray-300" x-text="patient.age"></td>
-                                           <td class="p-4 text-gray-300" x-text="patient.core_reason"></td>
-                                           <td class="p-4 space-x-2">
-                                               <button @click="viewPatient(patient.id)" class="px-3 py-1 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700">View</button>
-                                               <button @click="confirmDeletePatient(patient.id)" class="px-3 py-1 text-sm text-white bg-red-600 rounded-md hover:bg-red-700">Delete</button>
-                                           </td>
-                                       </tr>
-                                   </template>
-                                    <template x-if="filteredPatients.length === 0">
-                                        <tr><td colspan="4" class="p-4 text-center text-gray-500">No patients found.</td></tr>
-                                    </template>
-                               </tbody>
-                           </table>
-                        </div>
+                    <div class="flex justify-end gap-4 pt-4">
+                        <button type="button" @click="resetEditablePatient()" class="px-4 py-2 rounded-md font-semibold transition-all duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600">Clear Form</button>
+                        <button type="submit" class="px-6 py-2 rounded-md font-semibold transition-all duration-300 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-purple-500 hover:shadow-lg hover:shadow-purple-500/40">Add Patient</button>
                     </div>
+                </form>
+            </main>
 
-                    <!-- Schedule View -->
-                     <div x-show="view === 'schedule'">
-                        <h1 class="text-3xl font-bold font-display text-gray-100">Schedule</h1>
+            <main x-show="currentView === 'patientDetail'">
+                <template x-if="selectedPatient">
+                    <div class="space-y-8">
                         
-                        <!-- Add Schedule Form -->
-                        <div class="mt-6 p-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
-                            <h3 class="text-xl font-bold font-display text-purple-400">Add New Appointment</h3>
-                           <form @submit.prevent="addSchedule()" class="mt-4 space-y-4 sm:flex sm:items-end sm:space-y-0 sm:space-x-4">
-                               <div class="flex-grow">
-                                   <label class="block text-sm font-medium text-gray-400 mb-1">Name / Title</label>
-                                   <input type="text" x-model="newSchedule.attendee_name" placeholder="e.g., Team Meeting" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required>
-                               </div>
-                               <div>
-                                   <label class="block text-sm font-medium text-gray-400 mb-1">Appointment Time</label>
-                                   <input type="datetime-local" x-model="newSchedule.appointment_time" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required>
-                               </div>
-                               <div class="flex-shrink-0">
-                                   <button type="submit" class="w-full px-6 py-2 text-white font-bold rounded-lg shadow-lg shadow-purple-500/30 transition-all transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800">Add</button>
-                               </div>
-                           </form>
+                        <div>
+                            <button @click="setView('allPatients')" class="text-purple-400 hover:text-purple-300 mb-2">&larr; Back to All Patients</button>
+                            <h1 class="text-3xl font-bold text-white" x-text="selectedPatient.full_name"></h1>
+                            <p class="text-slate-400" x-text="selectedPatient.phone_number"></p>
+                        </div>
+                        <div class="border-b border-slate-700">
+                            <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                                <button @click="patientDetailTab = 'details'" :class="patientDetailTab === 'details' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-400'" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Details</button>
+                                <button @click="patientDetailTab = 'issues'" :class="patientDetailTab === 'issues' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-400'" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Checklist</button>
+                                <button @click="patientDetailTab = 'sessions'" :class="patientDetailTab === 'sessions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-400'" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Sessions</button>
+                                <button @click="patientDetailTab = 'progress'" :class="patientDetailTab === 'progress' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-400'" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Progress</button>
+                            </nav>
+                        </div>
+                        
+                        <div x-show="patientDetailTab === 'details'">
+                            <form @submit.prevent="updatePatientDetails()" class="space-y-8" x-if="editablePatient">
+                                <div class="p-6 bg-slate-800 rounded-lg border border-slate-700 space-y-6">
+                                    <h3 class="text-xl font-bold text-white border-b border-slate-600 pb-3 mb-6">Personal Information</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div><label class="block mb-2 text-sm font-medium">Full Name <span class="text-red-500">*</span></label><input type="text" x-model="editablePatient.full_name" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <div><label class="block mb-2 text-sm font-medium">Phone Number <span class="text-red-500">*</span></label><input type="text" x-model="editablePatient.phone_number" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <div><label class="block mb-2 text-sm font-medium">Age</label><input type="number" x-model.number="editablePatient.age" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <div><label class="block mb-2 text-sm font-medium">Place</label><input type="text" x-model="editablePatient.place" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <div><label class="block mb-2 text-sm font-medium">Father's Name</label><input type="text" x-model="editablePatient.father_name" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <div><label class="block mb-2 text-sm font-medium">School Class Studied</label><input type="text" x-model="editablePatient.school_class_studied" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <div><label class="block mb-2 text-sm font-medium">Madrasa Class/Level Studied</label><input type="text" x-model="editablePatient.madrasa_class_studied" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                    </div>
+                                </div>
+                                <div class="p-6 bg-slate-800 rounded-lg border border-slate-700 space-y-6">
+                                    <h3 class="text-xl font-bold text-white border-b border-slate-600 pb-3 mb-6">Marital & Family Status</h3>
+                                    <div class="flex items-center space-x-3"><input type="checkbox" id="edit_is_married" x-model="editablePatient.is_married" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="edit_is_married">Is Married?</label></div>
+                                    <div x-show="editablePatient.is_married" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div><label class="block mb-2 text-sm font-medium">Husband's Name</label><input type="text" x-model="editablePatient.husband_name" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <div><label class="block mb-2 text-sm font-medium">Husband's Job</label><input type="text" x-model="editablePatient.husband_job" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                    </div>
+                                    <div><label class="block mb-2 text-sm font-medium">Number of Kids</label><input type="number" x-model.number="editablePatient.kids_count" @input="updateKidsArray()" class="w-full max-w-xs bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                    <div x-show="editablePatient.kids_count > 0" class="space-y-3">
+                                        <h4 class="text-sm font-semibold text-slate-300">Kid Details</h4>
+                                        <template x-for="(kid, index) in editablePatient.kids" :key="index">
+                                            <div class="flex items-center gap-4 p-3 bg-slate-900/50 rounded-md">
+                                                <span class="font-medium text-slate-300">Kid <span x-text="index + 1"></span>:</span>
+                                                <select x-model="kid.sex" class="w-1/3 bg-slate-800 border border-slate-700 text-white rounded-md p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"><option value="">Sex...</option><option value="Male">Male</option><option value="Female">Female</option></select>
+                                                <input type="number" x-model.number="kid.age" placeholder="Age" class="w-1/3 bg-slate-800 border border-slate-700 text-white rounded-md p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="p-6 bg-slate-800 rounded-lg border border-slate-700 space-y-6">
+                                    <h3 class="text-xl font-bold text-white border-b border-slate-600 pb-3 mb-6">Clinical & Other Information</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                        <div class="space-y-4">
+                                            <div class="flex items-center space-x-3"><input type="checkbox" id="edit_is_working" x-model="editablePatient.is_working" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="edit_is_working">Is currently working?</label></div>
+                                            <div class="flex items-center space-x-3"><input type="checkbox" id="edit_has_siblings" x-model="editablePatient.has_siblings" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="edit_has_siblings">Has siblings?</label></div>
+                                            <div x-show="editablePatient.has_siblings" class="flex items-center space-x-3 ml-6"><input type="checkbox" id="edit_siblings_have_issues" x-model="editablePatient.siblings_have_issues" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="edit_siblings_have_issues">Do they have similar issues?</label></div>
+                                            <div class="flex items-center space-x-3"><input type="checkbox" id="edit_is_genetic" x-model="editablePatient.is_genetic" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="edit_is_genetic">Is it genetic?</label></div>
+                                            <div x-show="editablePatient.is_genetic" class="ml-6"><label class="block mb-2 text-sm font-medium">Name of relative with genetic link</label><input type="text" x-model="editablePatient.genetic_relative_name" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        </div>
+                                        <div class="space-y-6">
+                                            <div><label class="block mb-2 text-sm font-medium">Core Reason (e.g., OCD, Anxiety)</label><input type="text" x-model="editablePatient.core_reason" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                            <div><label class="block mb-2 text-sm font-medium">When it started?</label><input type="text" x-model="editablePatient.when_it_started" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                            <div>
+                                                <label class="block mb-2 text-sm font-medium">Previously sought help from?</label>
+                                                <div class="space-y-3 mt-2">
+                                                    <div class="flex gap-4 flex-wrap"><label class="flex items-center gap-2"><input type="checkbox" value="Psychologist" x-model="editablePatient.previously_sought_help" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Psychologist</label><label class="flex items-center gap-2"><input type="checkbox" value="Psychiatrist" x-model="editablePatient.previously_sought_help" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Psychiatrist</label><label class="flex items-center gap-2"><input type="checkbox" value="Spiritual" x-model="editablePatient.previously_sought_help" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Spiritual</label></div>
+                                                    <div><label class="block mb-2 text-sm font-medium">Other:</label><input type="text" x-model="editablePatient.previously_sought_help_other" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                                </div>
+                                            </div>
+                                            <div><label class="block mb-2 text-sm font-medium">Medicine Status</label><select x-model="editablePatient.medicine_status" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"><option value="">Select...</option><option value="I did take medicine">I did take medicine</option><option value="I am taking medicine now">I am taking medicine now</option></select></div>
+                                            <div><label class="block mb-2 text-sm font-medium">Other Medications</label><input type="text" x-model="editablePatient.other_medications" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                            <div><label class="block mb-2 text-sm font-medium">Other Diseases</label><input type="text" x-model="editablePatient.other_diseases" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-4 pt-4">
+                                    <button type="button" @click="setView('allPatients')" class="px-4 py-2 rounded-md font-semibold transition-all duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600">Cancel</button>
+                                    <button type="submit" class="px-6 py-2 rounded-md font-semibold transition-all duration-300 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-purple-500 hover:shadow-lg hover:shadow-purple-500/40">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div x-show="patientDetailTab === 'issues'">
+                             <form @submit.prevent="updatePatientDetails" class="space-y-8" x-if="editablePatient && editablePatient.core_issues">
+                                <div class="p-6 bg-slate-800 rounded-lg border border-slate-700 space-y-6">
+                                    <h3 class="text-xl font-bold text-white border-b border-slate-600 pb-3 mb-6">Core Issues Checklist</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div class="space-y-6">
+                                            <div class="flex items-center space-x-3"><input type="checkbox" id="core_belief" x-model="editablePatient.core_issues.is_about_belief" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"><label for="core_belief">Is it about belief?</label></div>
+                                            <div>
+                                                <label class="font-semibold">Niyyath (Intention) related:</label>
+                                                <div class="flex gap-4 flex-wrap mt-2"><label class="flex items-center gap-2"><input type="checkbox" value="Wudu" x-model="editablePatient.core_issues.niyyath_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Wudu</label><label class="flex items-center gap-2"><input type="checkbox" value="Namaz" x-model="editablePatient.core_issues.niyyath_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Namaz</label><label class="flex items-center gap-2"><input type="checkbox" value="Ghusl" x-model="editablePatient.core_issues.niyyath_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Ghusl</label><label class="flex items-center gap-2"><input type="checkbox" value="Fasting" x-model="editablePatient.core_issues.niyyath_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Fasting</label></div>
+                                            </div>
+                                            <div><label class="font-semibold block mb-2">Wudu (Ablution) related:</label><input type="text" placeholder="Wudu time (e.g., 30 mins)" x-model="editablePatient.core_issues.wudu_time" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                            <div><label class="font-semibold block mb-2">Namaz (Prayer) related:</label><input type="text" placeholder="Namaz time (e.g., 45 mins)" x-model="editablePatient.core_issues.namaz_time" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                            <div>
+                                                <label class="font-semibold">Najas (Impurity) related:</label>
+                                                <div class="grid grid-cols-2 gap-3 mt-2"><label class="flex items-center gap-2"><input type="checkbox" value="Urination time" x-model="editablePatient.core_issues.najas_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Urination time</label><label class="flex items-center gap-2"><input type="checkbox" value="Motion time" x-model="editablePatient.core_issues.najas_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Motion time</label><label class="flex items-center gap-2"><input type="checkbox" value="Ghusl time" x-model="editablePatient.core_issues.najas_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Ghusl time</label><label class="flex items-center gap-2"><input type="checkbox" value="Normal bath time" x-model="editablePatient.core_issues.najas_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Normal bath time</label><label class="flex items-center gap-2"><input type="checkbox" value="Hand washing time" x-model="editablePatient.core_issues.najas_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Hand washing time</label><label class="flex items-center gap-2"><input type="checkbox" value="Dress washing time" x-model="editablePatient.core_issues.najas_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Dress washing time</label></div>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-6">
+                                             <div>
+                                                <label class="font-semibold">Object/Animal related:</label>
+                                                <div class="space-y-3 mt-2"><label class="flex items-center gap-2"><input type="checkbox" id="core_dog" x-model="editablePatient.core_issues.dog_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Dog related</label><label class="flex items-center gap-2"><input type="checkbox" id="core_pig" x-model="editablePatient.core_issues.pig_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Pig related</label><label class="flex items-center gap-2"><input type="checkbox" id="core_soap" x-model="editablePatient.core_issues.over_soaping" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Over-soaping</label></div>
+                                            </div>
+                                            <div>
+                                                <label class="font-semibold">Fear related:</label>
+                                                <div class="space-y-3 mt-2"><label class="flex items-center gap-2"><input type="checkbox" id="core_death" x-model="editablePatient.core_issues.fear_of_death" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Fear of death</label><label class="flex items-center gap-2"><input type="checkbox" id="core_disease" x-model="editablePatient.core_issues.fear_of_disease" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Fear of disease</label><label class="flex items-center gap-2"><input type="checkbox" id="core_door" x-model="editablePatient.core_issues.door_locking_related" class="h-4 w-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500"> Door locking related</label></div>
+                                            </div>
+                                            <div><label class="font-semibold block mb-2">Other Issues:</label><textarea x-model="editablePatient.core_issues.other_issues" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition" rows="5"></textarea></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-end"><button type="submit" class="px-6 py-2 rounded-md font-semibold transition-all duration-300 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-purple-500 hover:shadow-lg hover:shadow-purple-500/40">Save Checklist</button></div>
+                             </form>
                         </div>
 
-                        <div class="mt-8 bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-x-auto">
-                            <table class="w-full whitespace-nowrap">
-                                <thead class="bg-slate-700">
-                                   <tr>
-                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Name / Title</th>
-                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Time</th>
-                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Status</th>
-                                       <th class="p-4 text-left text-sm font-semibold text-gray-300">Actions</th>
-                                   </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-700">
-                                    <template x-for="schedule in schedules" :key="schedule.id">
-                                        <tr class="hover:bg-slate-700/50">
-                                            <td class="p-4 text-gray-300" x-text="schedule.attendee_name"></td>
-                                            <td class="p-4 text-gray-300" x-text="formatDateTime(schedule.appointment_time)"></td>
-                                            <td class="p-4">
-                                                <span :class="{
-                                                    'bg-blue-900 text-blue-300': schedule.status === 'Scheduled',
-                                                    'bg-green-900 text-green-300': schedule.status === 'Completed',
-                                                    'bg-red-900 text-red-300': schedule.status === 'Canceled',
-                                                }" class="px-2 py-1 text-xs font-medium rounded-full" x-text="schedule.status"></span>
-                                            </td>
-                                            <td class="p-4 space-x-2 text-sm">
-                                                <button x-show="schedule.status === 'Scheduled'" @click="updateScheduleStatus(schedule.id, 'Completed')" class="text-green-400 hover:underline">Complete</button>
-                                                <button x-show="schedule.status === 'Scheduled'" @click="updateScheduleStatus(schedule.id, 'Canceled')" class="text-red-400 hover:underline">Cancel</button>
-                                            </td>
-                                        </tr>
+                        <div x-show="patientDetailTab === 'sessions'">
+                            <div class="flex justify-end mb-6"><button @click="openSessionModal('add')" class="px-6 py-2 rounded-md font-semibold transition-all duration-300 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-purple-500 hover:shadow-lg hover:shadow-purple-500/40">Add Session</button></div>
+                            <div class="space-y-6">
+                                <template x-for="session in selectedPatient.sessions" :key="session.id">
+                                    <div class="p-6 bg-slate-800 rounded-lg border border-slate-700">
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div><h4 class="text-lg font-bold" x-text="session.title"></h4><span class="text-sm text-slate-400" x-text="formatDate(session.date)"></span></div>
+                                            <button @click="openSessionModal('edit', session)" class="px-3 py-1 rounded-md font-semibold transition-all duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600 text-xs">Edit</button>
+                                        </div>
+                                        <p class="text-slate-300 whitespace-pre-wrap" x-text="session.log"></p>
+                                    </div>
+                                </template>
+                                <template x-if="!selectedPatient.sessions || selectedPatient.sessions.length === 0"><div class="text-center py-10 text-slate-400 bg-slate-800 rounded-lg border border-slate-700"><p>No sessions recorded.</p></div></template>
+                            </div>
+                        </div>
+
+                        <div x-show="patientDetailTab === 'progress'">
+                            <div class="p-6 bg-slate-800 rounded-lg border border-slate-700 space-y-6">
+                                <h3 class="text-xl font-bold text-white border-b border-slate-600 pb-3 mb-6">Progress Tracking</h3>
+                                <div class="space-y-5">
+                                    <template x-for="issue in editablePatient.tracked_issues" :key="issue.id">
+                                        <div class="flex items-center gap-4">
+                                            <div class="flex-grow"><div class="flex justify-between text-sm mb-1"><span x-text="issue.name"></span><span x-text="issue.percentage_cured + '% Cured'"></span></div><div class="w-full bg-slate-700 rounded-full h-2.5"><div class="bg-purple-600 h-2.5 rounded-full" :style="`width: ${issue.percentage_cured}%`"></div></div></div>
+                                            <input type="number" min="0" max="100" x-model.number="issue.percentage_cured" @change.debounce.500ms="updateTrackedIssue(issue)" class="w-20 bg-slate-900 border border-slate-700 text-white rounded-md p-1 text-center">
+                                            <button @click="deleteTrackedIssue(issue.id)" class="text-red-400 hover:text-red-300 font-bold text-2xl leading-none">&times;</button>
+                                        </div>
                                     </template>
-                                    <template x-if="schedules.length === 0">
-                                        <tr><td colspan="4" class="p-4 text-center text-gray-500">No appointments scheduled.</td></tr>
+                                    <template x-if="!editablePatient.tracked_issues || editablePatient.tracked_issues.length === 0"><p class="text-center py-4 text-slate-400">No issues are being tracked. Add one below.</p></template>
+                                </div>
+                                <div class="pt-6 border-t border-slate-700">
+                                    <form @submit.prevent="addTrackedIssue" class="flex items-end gap-4">
+                                        <div class="flex-grow"><label class="block mb-2 text-sm font-medium">New Issue to Track</label><input type="text" x-model="newTrackedIssue.name" required placeholder="e.g., Reduce hand washing" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <div><label class="block mb-2 text-sm font-medium">Initial %</label><input type="number" min="0" max="100" x-model.number="newTrackedIssue.percentage_cured" required class="w-24 bg-slate-900 border border-slate-700 text-white rounded-md p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                        <button type="submit" class="h-10 px-4 rounded-md font-semibold transition-all duration-300 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-purple-500 hover:shadow-lg hover:shadow-purple-500/40">Add</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </main>
+
+             <main x-show="currentView === 'schedule'" x-init="if(isAuthenticated) getSchedule()">
+                <h1 class="text-3xl font-bold text-white mb-8">Schedule</h1>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-1">
+                        <div class="p-6 bg-slate-800 rounded-lg border border-slate-700">
+                             <h3 class="text-xl font-bold text-white mb-6">Add Appointment</h3>
+                             <form @submit.prevent="addScheduleEvent" class="space-y-4">
+                                <div><label class="block mb-2 text-sm font-medium">Name / Title</label><input type="text" x-model="newScheduleEvent.title" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                <div><label class="block mb-2 text-sm font-medium">Appointment Time</label><input type="datetime-local" x-model="newScheduleEvent.time" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                                <button type="submit" class="w-full px-4 py-3 rounded-md font-semibold transition-all duration-300 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-purple-500 hover:shadow-lg hover:shadow-purple-500/40">Add Event</button>
+                             </form>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-x-auto">
+                            <table class="w-full text-sm text-left text-slate-300">
+                                <thead class="text-xs text-slate-400 uppercase bg-slate-700"><tr><th scope="col" class="px-6 py-3">Title</th><th scope="col" class="px-6 py-3">Time</th><th scope="col" class="px-6 py-3">Status</th><th scope="col" class="px-6 py-3 text-right">Actions</th></tr></thead>
+                                <tbody>
+                                    <template x-for="event in schedule" :key="event.id">
+                                         <tr class="border-b border-slate-700">
+                                            <td class="px-6 py-4 font-medium text-white" x-text="event.title"></td>
+                                            <td class="px-6 py-4" x-text="formatDateTime(event.time)"></td>
+                                            <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full" :class="{'bg-blue-900 text-blue-300': event.status === 'Scheduled', 'bg-green-900 text-green-300': event.status === 'Completed', 'bg-yellow-900 text-yellow-300': event.status === 'Canceled'}" x-text="event.status"></span></td>
+                                            <td class="px-6 py-4 text-right">
+                                                <div class="flex gap-2 justify-end">
+                                                    <template x-if="event.status === 'Scheduled'"><button @click="updateScheduleStatus(event.id, 'Completed')" class="px-2 py-1 text-xs rounded bg-green-500/20 text-green-300 hover:bg-green-500/40">Complete</button><button @click="updateScheduleStatus(event.id, 'Canceled')" class="px-2 py-1 text-xs rounded bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/40">Cancel</button></template>
+                                                    <button @click="deleteScheduleEvent(event.id)" class="px-2 py-1 text-xs rounded bg-red-500/20 text-red-300 hover:bg-red-500/40">Delete</button>
+                                                </div>
+                                            </td>
+                                         </tr>
                                     </template>
+                                     <template x-if="schedule.length === 0"><tr><td colspan="4" class="text-center py-8 text-slate-400">No events scheduled.</td></tr></template>
                                 </tbody>
                             </table>
                         </div>
                     </div>
-
-                    <!-- Add Patient View -->
-                     <div x-show="view === 'addPatient'">
-                        <h1 class="text-3xl font-bold font-display text-gray-100">Add a New Patient</h1>
-                         <form @submit.prevent="addPatient()" class="mt-6 p-6 sm:p-8 bg-slate-800 border border-slate-700 rounded-lg shadow-lg space-y-8">
-                            
-                            <!-- Personal Information Section -->
-                            <section>
-                                <h2 class="text-xl font-semibold border-b border-slate-600 pb-2 mb-4 text-purple-400">Personal Information</h2>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Full Name</label><input type="text" x-model="newPatient.name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required></div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Age</label><input type="number" x-model.number="newPatient.age" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required></div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Place</label><input type="text" x-model="newPatient.place" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Phone Number</label><input type="tel" x-model="newPatient.phone_number" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Education</label><input type="text" x-model="newPatient.education" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
-                                </div>
-                            </section>
-
-                            <!-- Clinical Information Section -->
-                             <section>
-                                <h2 class="text-xl font-semibold border-b border-slate-600 pb-2 mb-4 text-purple-400">Clinical Information</h2>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-400 mb-1">Core Reason</label>
-                                        <select x-model="newPatient.core_reason" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
-                                            <option>OCD</option><option>Anxiety</option><option>Depression</option><option>Phobia</option><option>Other</option>
-                                        </select>
-                                    </div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">When did it start?</label><input type="text" x-model="newPatient.issue_start_date" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., 2 years ago"></div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-400 mb-1">Severity</label>
-                                        <select x-model="newPatient.severity" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
-                                            <option>Low</option><option>Medium</option><option>Strong</option>
-                                        </select>
-                                    </div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Previous Treatments</label><input type="text" x-model="newPatient.previous_treatments" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., Psychiatrist, Medicine"></div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Other Current Medications</label><input type="text" x-model="newPatient.other_meds" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
-                                     <div><label class="block text-sm font-medium text-gray-400 mb-1">Other Diseases</label><input type="text" x-model="newPatient.other_diseases" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
-                                </div>
-                            </section>
-
-                             <!-- Family & Work Section -->
-                             <section>
-                                <h2 class="text-xl font-semibold border-b border-slate-600 pb-2 mb-4 text-purple-400">Family & Work</h2>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Partner's Name (if applicable)</label><input type="text" x-model="newPatient.partner_name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Mother's Name</label><input type="text" x-model="newPatient.mother_name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
-                                    <div><label class="block text-sm font-medium text-gray-400 mb-1">Number of Children</label><input type="number" x-model.number="newPatient.kids_count" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></div>
-                                    <div class="flex items-center flex-wrap gap-x-6 gap-y-2 col-span-full">
-                                        <div class="flex items-center space-x-2"><input type="checkbox" id="is_married" x-model="newPatient.is_married" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="is_married" class="text-sm text-gray-400">Married?</label></div>
-                                        <div class="flex items-center space-x-2"><input type="checkbox" id="has_kids" x-model="newPatient.has_kids" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="has_kids" class="text-sm text-gray-400">Has Kids?</label></div>
-                                        <div class="flex items-center space-x-2"><input type="checkbox" id="has_siblings" x-model="newPatient.has_siblings" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="has_siblings" class="text-sm text-gray-400">Has Siblings?</label></div>
-                                        <div class="flex items-center space-x-2"><input type="checkbox" id="is_working" x-model="newPatient.is_working" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="is_working" class="text-sm text-gray-400">Is Working?</label></div>
-                                        <div class="flex items-center space-x-2"><input type="checkbox" id="is_genetic" x-model="newPatient.is_genetic" class="h-4 w-4 rounded border-gray-500 bg-slate-600 text-purple-600 focus:ring-purple-500"><label for="is_genetic" class="text-sm text-gray-400">Genetic?</label></div>
-                                    </div>
-                                </div>
-                            </section>
-                            
-                             <!-- Session Mode -->
-                             <section>
-                                <h2 class="text-xl font-semibold border-b border-slate-600 pb-2 mb-4 text-purple-400">Session Details</h2>
-                                 <div>
-                                     <label class="block text-sm font-medium text-gray-400 mb-1">Preferred Mode</label>
-                                      <select x-model="newPatient.consultation_mode" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
-                                          <option>Online</option><option>Offline</option>
-                                      </select>
-                                 </div>
-                             </section>
-
-                             <div class="flex justify-end pt-4">
-                                 <button type="submit" class="px-6 py-2 text-white font-bold rounded-lg shadow-lg shadow-purple-500/30 transition-all transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800">Save Patient</button>
-                             </div>
-                         </form>
-                    </div>
-
-                    <!-- Patient Detail View -->
-                    <div x-show="view === 'patientDetail' && patients.current">
-                        <div class="flex justify-between items-center">
-                            <h1 class="text-2xl sm:text-3xl font-bold font-display text-gray-100" x-text="patients.current.name"></h1>
-                            <button @click="changeView('patientList')" class="text-purple-400 hover:underline text-sm sm:text-base">← Back to List</button>
-                        </div>
-                        <div class="mt-6">
-                           <!-- Tabs -->
-                            <div class="border-b border-slate-700">
-                                <nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto" aria-label="Tabs">
-                                    <a href="#" @click.prevent="patients.activeTab = 'profile'" :class="{'border-purple-500 text-purple-400': patients.activeTab === 'profile', 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600': patients.activeTab !== 'profile'}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Profile & Info</a>
-                                    <a href="#" @click.prevent="patients.activeTab = 'progress'" :class="{'border-purple-500 text-purple-400': patients.activeTab === 'progress', 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600': patients.activeTab !== 'progress'}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Core Issues</a>
-                                    <a href="#" @click.prevent="patients.activeTab = 'visits'" :class="{'border-purple-500 text-purple-400': patients.activeTab === 'visits', 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600': patients.activeTab !== 'visits'}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Visit History</a>
-                                </nav>
-                            </div>
-                            
-                            <!-- Tab Content -->
-                            <div class="py-6">
-                                 <!-- Profile Tab -->
-                                <div x-show="patients.activeTab === 'profile'">
-                                   <div class="p-6 sm:p-8 bg-slate-800 border border-slate-700 rounded-lg shadow-lg space-y-6">
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
-                                            <template x-for="field in profileFields" :key="field.key">
-                                                <div class="p-4 bg-slate-700/50 rounded-lg">
-                                                    <h4 class="font-semibold text-gray-400" x-text="field.label"></h4>
-                                                    <p class="text-gray-200" x-text="getPatientField(field.key)"></p>
-                                                </div>
-                                            </template>
-                                        </div>
-                                         <p class="mt-4 text-gray-500 text-xs">Full editable profile view coming soon.</p>
-                                   </div>
-                                </div>
-                                <!-- Progress Tab -->
-                                <div x-show="patients.activeTab === 'progress'">
-                                    <div class="p-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
-                                        <h3 class="text-xl font-bold font-display text-purple-400" x-text="`Issues related to: ${patients.current.core_reason}`"></h3>
-                                        <form @submit.prevent="addSubIssue()" class="sm:flex items-center space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
-                                            <input type="text" x-model="newSubIssue.name" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Add new sub-issue (e.g., Compulsive checking)">
-                                            <button type="submit" class="w-full sm:w-auto px-6 py-2 text-white font-bold rounded-lg shadow-md transition-transform transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 whitespace-nowrap">Add Issue</button>
-                                        </form>
-                                        <div class="mt-6 space-y-4">
-                                            <template x-for="issue in patients.current.sub_issues" :key="issue.id">
-                                                <div>
-                                                    <div class="flex justify-between items-center">
-                                                        <span class="font-medium text-gray-300" x-text="issue.name"></span>
-                                                        <div class="flex items-center space-x-2">
-                                                            <span class="text-sm text-gray-400" x-text="issue.progress_percentage + '% cured'"></span>
-                                                            <button @click="deleteSubIssue(issue.id)" class="text-red-500 hover:text-red-400">&times;</button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="mt-1 w-full bg-slate-700 rounded-full h-2.5">
-                                                        <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2.5 rounded-full" :style="`width: ${issue.progress_percentage}%`"></div>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Visits Tab -->
-                                <div x-show="patients.activeTab === 'visits'">
-                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                        <!-- Add Visit Form -->
-                                        <div class="p-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
-                                            <h3 class="text-xl font-bold font-display text-purple-400">Add New Visit</h3>
-                                            <form @submit.prevent="addVisit()" class="space-y-4 mt-4">
-                                                <div>
-                                                    <label class="block text-sm font-medium text-gray-400 mb-1">Visit Description / Notes</label>
-                                                    <textarea x-model="newVisit.description" rows="4" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
-                                                </div>
-                                                <div>
-                                                    <h4 class="text-md font-semibold text-gray-300">Update Progress</h4>
-                                                    <div class="space-y-3 mt-2">
-                                                        <template x-for="(issue, index) in patients.current.sub_issues" :key="issue.id">
-                                                            <div>
-                                                                <label x-text="issue.name" class="block text-sm font-medium text-gray-400 mb-1"></label>
-                                                                <input type="range" min="0" max="100" x-model.number="newVisit.progress_updates[index].progress_percentage" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
-                                                                <div class="text-right text-sm text-gray-400" x-text="newVisit.progress_updates[index].progress_percentage + '%'"></div>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                                <div class="flex justify-end">
-                                                    <button type="submit" class="px-6 py-2 text-white font-bold rounded-lg shadow-lg shadow-purple-500/30 transition-all transform hover:scale-105 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800">Save Visit</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                        <!-- Past Visits List -->
-                                        <div class="p-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
-                                            <h3 class="text-xl font-bold font-display text-purple-400">Past Visits</h3>
-                                            <div class="mt-4 space-y-4 max-h-96 overflow-y-auto">
-                                                <template x-for="visit in patients.current.visits.slice().reverse()" :key="visit.id">
-                                                    <div class="p-4 border border-slate-700 rounded-lg">
-                                                        <p class="font-bold text-sm text-gray-400" x-text="formatDate(visit.visit_date)"></p>
-                                                        <p class="mt-1 text-gray-300" x-text="visit.description"></p>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </main>
-            </div>
-        </template>
+                </div>
+            </main>
+        </div>
     </div>
-    
+
+    <div x-show="deletePatientModal.show" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click.self="deletePatientModal.show = false">
+        <div class="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700"><h3 class="text-lg font-bold text-white">Confirm Deletion</h3><p class="mt-2 text-slate-300">Are you sure you want to delete the patient "<span x-text="deletePatientModal.name"></span>"? This action cannot be undone.</p><div class="mt-6 flex justify-end gap-4"><button @click="deletePatientModal.show = false" class="px-4 py-2 rounded-md font-semibold transition-all duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600">Cancel</button><button @click="deletePatient()" class="px-4 py-2 rounded-md font-semibold transition-all duration-200 bg-red-600 text-white hover:bg-red-700">Delete</button></div></div>
+    </div>
+
+    <div x-show="sessionModal.show" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click.self="sessionModal.show = false">
+        <div class="bg-slate-800 rounded-lg p-6 w-full max-w-2xl border border-slate-700 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold text-white mb-6" x-text="sessionModal.mode === 'add' ? 'Add New Session' : 'Edit Session'"></h3>
+            <form @submit.prevent="saveSession" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="block mb-2 text-sm font-medium">Title</label><input type="text" x-model="sessionModal.data.title" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                    <div><label class="block mb-2 text-sm font-medium">Date</label><input type="date" x-model="sessionModal.data.date" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"></div>
+                </div>
+                <div><label class="block mb-2 text-sm font-medium">Session Log / Description</label><textarea x-model="sessionModal.data.log" required class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition" rows="8"></textarea></div>
+                <div class="mt-8 flex justify-end gap-4">
+                    <button type="button" @click="sessionModal.show = false" class="px-4 py-2 rounded-md font-semibold transition-all duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600">Cancel</button>
+                    <button type="submit" class="px-6 py-2 rounded-md font-semibold transition-all duration-300 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-purple-500 hover:shadow-lg hover:shadow-purple-500/40">Save Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('clinicApp', () => ({
-                view: 'dashboard', 
-                sidebarOpen: false,
-                appError: null,
-                patientSearch: '',
-                auth: {
-                    username: '', password: '',
-                    token: (() => { try { return localStorage.getItem('clinicxz_token'); } catch (e) { return null; } })(),
-                    error: null,
-                },
-                patients: { list: [], current: null, activeTab: 'profile' },
-                schedules: [],
-                recentVisits: [],
-                confirmationModal: {
-                    open: false, title: 'Confirm Deletion',
-                    message: 'Are you sure you want to delete this patient?',
-                    onConfirm: () => {}
-                },
-                profileFields: [
-                    { key: 'name', label: 'Full Name' }, { key: 'age', label: 'Age' },
-                    { key: 'phone_number', label: 'Phone' }, { key: 'place', label: 'Place' },
-                    { key: 'core_reason', label: 'Core Reason' }, { key: 'severity', label: 'Severity' },
-                    { key: 'consultation_mode', label: 'Mode' }, { key: 'issue_start_date', 'label': 'Issue Started' },
-                    { key: 'partner_name', label: 'Partner' }, { key: 'mother_name', label: 'Mother' },
-                    { key: 'kids_count', label: 'Children' }, { key: 'education', label: 'Education' },
-                    { key: 'previous_treatments', label: 'Previous Treatments' },
-                    { key: 'other_meds', label: 'Other Medications' }, { key: 'other_diseases', label: 'Other Diseases' },
-                    { key: 'is_married', label: 'Married' }, { key: 'has_kids', label: 'Has Kids' },
-                    { key: 'has_siblings', label: 'Has Siblings' },
-                    { key: 'is_working', label: 'Is Working' }, { key: 'is_genetic', label: 'Is Genetic' },
-                ],
-                newPatient: {
-                    name: '', age: null, place: '', phone_number: '', education: '',
-                    core_reason: 'OCD', issue_start_date: '', severity: 'Low', 
-                    previous_treatments: '', other_meds: '', other_diseases: '',
-                    partner_name: '', mother_name: '',
-                    is_married: false, has_siblings: false, has_kids: false, kids_count: 0, 
-                    is_genetic: false, is_working: false, consultation_mode: 'Offline',
-                },
-                newSubIssue: { name: '' },
-                newVisit: { description: '', progress_updates: [] },
-                newSchedule: { attendee_name: '', appointment_time: '' },
-                
-                init() {
-                    if (this.auth.token) { 
-                        this.fetchPatients();
-                        this.fetchSchedules();
-                        this.fetchRecentVisits();
-                    }
-                },
-                
-                get filteredPatients() {
-                    if (!this.patientSearch.trim()) return this.patients.list;
-                    return this.patients.list.filter(p => 
-                        p.name.toLowerCase().includes(this.patientSearch.toLowerCase())
-                    );
-                },
-                
-                get upcomingSchedules() {
-                    return this.schedules.filter(s => s.status === 'Scheduled');
-                },
+    function clinicApp() {
+        return {
+            isAuthenticated: localStorage.getItem('accessToken') ? true : false,
+            credentials: { username: '', password: '' },
+            loginError: '',
+            currentView: 'dashboard',
+            sidebarOpen: false,
+            patients: [],
+            patientSearch: '',
+            dashboard: { total_patients: 0, upcoming_appointments: 0, recent_patient_visits: [] },
+            schedule: [],
+            newScheduleEvent: { title: '', time: '' },
+            selectedPatient: null,
+            editablePatient: null,
+            patientDetailTab: 'details',
+            deletePatientModal: { show: false, id: null, name: ''},
+            notification: { show: false, message: '', type: 'success' },
+            sessionModal: { show: false, mode: 'add', data: {} },
+            newTrackedIssue: { name: '', percentage_cured: 0 },
 
-                // --- HELPERS ---
-                getPatientField(key) {
-                    if (!this.patients.current) return 'N/A';
-                    const value = this.patients.current[key];
-                    if (typeof value === 'boolean') { return value ? 'Yes' : 'No'; }
-                    return value || 'N/A';
-                },
-                formatDate(isoString) {
-                    if (!isoString) return '';
-                    return new Date(isoString).toLocaleDateString();
-                },
-                formatDateTime(isoString) {
-                    if (!isoString) return '';
-                    return new Date(isoString).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-                },
-
-                // --- API HELPERS ---
-                async apiFetch(url, options = {}) {
-                    this.appError = null;
-                    options.headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.auth.token}`, ...options.headers };
-                    try {
-                        const response = await fetch(url, options);
-                        if (response.status === 401) { this.logout(); return null; }
-                        if (!response.ok) {
-                            const err = await response.json();
-                            let errorMessage = 'An unknown error occurred.';
-                            if (err.detail) {
-                                if (typeof err.detail === 'string') { errorMessage = err.detail; } 
-                                else if (Array.isArray(err.detail)) { errorMessage = err.detail.map(e => `${e.loc.join(' -> ')}: ${e.msg}`).join('; '); }
-                                else { errorMessage = JSON.stringify(err.detail); }
+          
+            get filteredPatients() {
+                if (!this.patientSearch.trim()) return this.patients;
+                const search = this.patientSearch.toLowerCase();
+                return this.patients.filter(p => 
+                    (p.full_name && p.full_name.toLowerCase().includes(search)) || 
+                    (p.phone_number && p.phone_number.includes(search))
+                );
+            },
+            
+            init() {
+                this.resetEditablePatient();
+                if (this.isAuthenticated) { this.setView('dashboard'); }
+            },
+            
+            async apiCall(url, method = 'GET', body = null) {
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('accessToken')}`};
+                const options = { method, headers };
+                if (body) { options.body = JSON.stringify(body); }
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 401) { this.logout(); return null; }
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        let errorMessage = 'An API error occurred.';
+                        if (errorData.detail) {
+                            if (Array.isArray(errorData.detail)) {
+                                errorMessage = errorData.detail.map(e => e.msg).join(', ');
+                            } else if (typeof errorData.detail === 'string') {
+                                errorMessage = errorData.detail;
                             }
-                            throw new Error(errorMessage);
                         }
-                        if (response.status === 204) return true;
-                        return await response.json();
-                    } catch (error) {
-                        console.error('API Fetch Error:', error);
-                        this.appError = error.message; 
-                        return null;
+                        throw new Error(errorMessage);
                     }
-                },
+                    if (response.status === 204) return true;
+                    return await response.json();
+                } catch (error) {
+                    this.showNotification(error.message, 'error');
+                    console.error('API Call Error:', error);
+                    return null;
+                }
+            },
+            
+            async login() {
+                this.loginError = '';
+                const formData = new URLSearchParams();
+                formData.append('username', this.credentials.username);
+                formData.append('password', this.credentials.password);
+                try {
+                    const response = await fetch('/token', { method: 'POST', body: formData });
+                    if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.detail); }
+                    const data = await response.json();
+                    localStorage.setItem('accessToken', data.access_token);
+                    this.isAuthenticated = true;
+                    this.setView('dashboard');
+                } catch (error) { this.loginError = error.message; }
+            },
+            logout() {
+                localStorage.removeItem('accessToken');
+                this.isAuthenticated = false;
+                this.currentView = '';
+            },
 
-                // --- AUTH ---
-                async login() {
-                    this.auth.error = null;
-                    const formData = new FormData();
-                    formData.append('username', this.auth.username);
-                    formData.append('password', this.auth.password);
-                    try {
-                        const response = await fetch('/token', { method: 'POST', body: formData });
-                        if (!response.ok) {
-                             const errData = await response.json();
-                             throw new Error(errData.detail || 'Login failed');
-                        }
-                        const data = await response.json();
-                        this.auth.token = data.access_token;
-                        localStorage.setItem('clinicxz_token', this.auth.token);
-                        this.auth.username = ''; this.auth.password = '';
-                        this.init();
-                    } catch (error) { this.auth.error = error.message; }
-                },
-                logout() {
-                    this.auth.token = null;
-                    localStorage.removeItem('clinicxz_token');
-                    window.location.reload();
-                },
-                
-                // --- VIEW MANAGEMENT ---
-                changeView(newView) { this.view = newView; this.sidebarOpen = false; },
+            setView(view) {
+                this.currentView = view;
+                this.sidebarOpen = false;
+                if(view === 'addPatient') {
+                    this.resetEditablePatient();
+                }
+                if (this.isAuthenticated && !this.selectedPatient) { // Avoid refetching patient data on tab switch
+                    if (view === 'dashboard') this.getDashboardStats();
+                    if (view === 'allPatients') this.getAllPatients();
+                    if (view === 'schedule') this.getSchedule();
+                }
+            },
+            
+            async refreshPatientData(id) {
+                const data = await this.apiCall(`/api/patients/${id}`);
+                if (data) {
+                    this.selectedPatient = data;
+                    this.editablePatient = JSON.parse(JSON.stringify(data));
+                    // --- BUG FIX: Robustly initialize nested objects and arrays ---
+                    if (!this.editablePatient.core_issues) { this.editablePatient.core_issues = {}; }
+                    if (!Array.isArray(this.editablePatient.core_issues.niyyath_related)) { this.editablePatient.core_issues.niyyath_related = []; }
+                    if (!Array.isArray(this.editablePatient.core_issues.najas_related)) { this.editablePatient.core_issues.najas_related = []; }
+                    if (!Array.isArray(this.editablePatient.kids)) { this.editablePatient.kids = []; }
+                    if (!Array.isArray(this.editablePatient.tracked_issues)) { this.editablePatient.tracked_issues = []; }
+                }
+            },
 
-                // --- PATIENTS ---
-                async fetchPatients() {
-                    const data = await this.apiFetch('/api/patients');
-                    if (data) this.patients.list = data;
-                },
-                async addPatient() {
-                    const newPatientData = await this.apiFetch('/api/patients', { method: 'POST', body: JSON.stringify(this.newPatient) });
-                    if(newPatientData) {
-                        this.fetchPatients();
-                        this.changeView('patientList');
-                        this.newPatient = this.getNewPatientModel();
-                    }
-                },
-                getNewPatientModel() {
-                     return {
-                        name: '', age: null, place: '', phone_number: '', education: '',
-                        core_reason: 'OCD', issue_start_date: '', severity: 'Low', 
-                        previous_treatments: '', other_meds: '', other_diseases: '',
-                        partner_name: '', mother_name: '',
-                        is_married: false, has_siblings: false, has_kids: false, kids_count: 0, 
-                        is_genetic: false, is_working: false, consultation_mode: 'Offline',
-                    };
-                },
-                async viewPatient(id) {
-                    const data = await this.apiFetch(`/api/patients/${id}`);
-                    if (data) {
-                        this.patients.current = data;
-                        this.patients.activeTab = 'profile';
-                        this.prepareNewVisitForm();
-                        this.changeView('patientDetail');
-                    }
-                },
-                confirmDeletePatient(id) {
-                    this.confirmationModal.onConfirm = () => this.deletePatient(id);
-                    this.confirmationModal.open = true;
-                },
-                async deletePatient(id) {
-                    this.confirmationModal.open = false;
-                    const success = await this.apiFetch(`/api/patients/${id}`, { method: 'DELETE' });
-                    if (success) {
-                        this.fetchPatients();
-                        this.fetchSchedules();
-                        if (this.view === 'patientDetail' && this.patients.current && this.patients.current.id === id) {
-                            this.changeView('patientList');
-                        }
-                    }
-                },
+            async getDashboardStats() {
+                const data = await this.apiCall('/api/dashboard-stats');
+                if (data) this.dashboard = data;
+            },
 
-                // --- SUB ISSUES ---
-                async addSubIssue() {
-                    if (!this.newSubIssue.name.trim()) return;
-                    const data = await this.apiFetch(`/api/patients/${this.patients.current.id}/subissues`, { method: 'POST', body: JSON.stringify({ name: this.newSubIssue.name }) });
-                    if (data) {
-                        this.patients.current.sub_issues.push(data);
-                        this.newSubIssue.name = '';
-                        this.prepareNewVisitForm();
+            async getAllPatients() {
+                const data = await this.apiCall('/api/patients');
+                if (data) this.patients = data;
+            },
+            async addPatient() {
+                const data = await this.apiCall('/api/patients', 'POST', this.editablePatient);
+                if (data) {
+                    this.showNotification('Patient added successfully!', 'success');
+                    this.setView('allPatients');
+                }
+            },
+            async viewPatient(id) {
+                await this.refreshPatientData(id);
+                if(this.selectedPatient){
+                    this.patientDetailTab = 'details';
+                    this.currentView = 'patientDetail';
+                }
+            },
+            async updatePatientDetails() {
+                const data = await this.apiCall(`/api/patients/${this.selectedPatient.id}`, 'PUT', this.editablePatient);
+                if (data) {
+                    this.showNotification('Patient details updated!', 'success');
+                    await this.refreshPatientData(this.selectedPatient.id); 
+                }
+            },
+            confirmDeletePatient(id, name) {
+                this.deletePatientModal = { show: true, id, name };
+            },
+            async deletePatient() {
+                if (await this.apiCall(`/api/patients/${this.deletePatientModal.id}`, 'DELETE')) {
+                    this.showNotification('Patient deleted.', 'success');
+                    this.deletePatientModal.show = false;
+                    this.setView('allPatients');
+                }
+            },
+            
+            resetEditablePatient() {
+                this.editablePatient = {
+                    full_name: '', phone_number: '', age: null, place: '', father_name: '', school_class_studied: '', madrasa_class_studied: '',
+                    is_married: false, husband_name: '', husband_job: '', kids_count: 0, kids: [],
+                    is_working: false, has_siblings: false, siblings_have_issues: false,
+                    core_reason: '', when_it_started: '', previously_sought_help: [], previously_sought_help_other: '',
+                    medicine_status: '', other_medications: '', other_diseases: '',
+                    is_genetic: false, genetic_relative_name: ''
+                };
+            },
+            updateKidsArray() {
+                const count = this.editablePatient.kids_count || 0;
+                while (this.editablePatient.kids.length < count) { this.editablePatient.kids.push({ sex: '', age: null }); }
+                if (this.editablePatient.kids.length > count) { this.editablePatient.kids.length = count; }
+            },
+            
+            openSessionModal(mode, session = null) {
+                this.sessionModal.mode = mode;
+                this.sessionModal.data = (mode === 'add') 
+                    ? { title: '', date: new Date().toISOString().split('T')[0], log: '' }
+                    : JSON.parse(JSON.stringify(session));
+                this.sessionModal.show = true;
+            },
+            async saveSession() {
+                let success = false;
+                if (this.sessionModal.mode === 'add') {
+                    if (await this.apiCall(`/api/patients/${this.selectedPatient.id}/sessions`, 'POST', this.sessionModal.data)) { 
+                        this.showNotification('Session added!', 'success'); success = true; 
                     }
-                },
-                async deleteSubIssue(id) {
-                    const success = await this.apiFetch(`/api/subissues/${id}`, { method: 'DELETE' });
-                    if (success) {
-                        this.patients.current.sub_issues = this.patients.current.sub_issues.filter(i => i.id !== id);
-                        this.prepareNewVisitForm();
-                    }
-                },
-
-                // --- VISITS ---
-                prepareNewVisitForm() {
-                    this.newVisit.description = '';
-                    this.newVisit.progress_updates = this.patients.current.sub_issues.map(issue => ({
-                        sub_issue_id: issue.id,
-                        progress_percentage: issue.progress_percentage
-                    }));
-                },
-                async addVisit() {
-                    const data = await this.apiFetch(`/api/patients/${this.patients.current.id}/visits`, { method: 'POST', body: JSON.stringify(this.newVisit) });
-                    if (data) { 
-                        this.viewPatient(this.patients.current.id);
-                        this.fetchRecentVisits(); 
-                    }
-                },
-                async fetchRecentVisits() {
-                    const data = await this.apiFetch('/api/visits/recent');
-                    if (data) this.recentVisits = data;
-                },
-
-                // --- SCHEDULES ---
-                async fetchSchedules() {
-                    const data = await this.apiFetch('/api/schedules');
-                    if (data) this.schedules = data;
-                },
-                async addSchedule() {
-                    if (!this.newSchedule.appointment_time || !this.newSchedule.attendee_name.trim()) {
-                        this.appError = "Please provide a name/title and select an appointment time.";
-                        return;
-                    }
-                    const data = await this.apiFetch(`/api/schedules`, {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            attendee_name: this.newSchedule.attendee_name,
-                            appointment_time: new Date(this.newSchedule.appointment_time).toISOString(),
-                            status: 'Scheduled'
-                        })
-                    });
-                    if(data){
-                        this.fetchSchedules();
-                        this.newSchedule.attendee_name = '';
-                        this.newSchedule.appointment_time = '';
-                    }
-                },
-                async updateScheduleStatus(scheduleId, newStatus) {
-                    const data = await this.apiFetch(`/api/schedules/${scheduleId}`, {
-                        method: 'PUT',
-                        body: JSON.stringify({ status: newStatus })
-                    });
-                    if (data) {
-                        this.fetchSchedules();
+                } else {
+                    if (await this.apiCall(`/api/sessions/${this.sessionModal.data.id}`, 'PUT', this.sessionModal.data)) { 
+                        this.showNotification('Session updated!', 'success'); success = true; 
                     }
                 }
-            }));
-        });
+                if (success) {
+                    this.sessionModal.show = false;
+                    this.refreshPatientData(this.selectedPatient.id);
+                }
+            },
+            
+            async addTrackedIssue() {
+                if (await this.apiCall(`/api/patients/${this.selectedPatient.id}/issues`, 'POST', this.newTrackedIssue)) {
+                    this.showNotification('Tracked issue added!', 'success');
+                    this.newTrackedIssue = { name: '', percentage_cured: 0 };
+                    this.refreshPatientData(this.selectedPatient.id);
+                }
+            },
+            async updateTrackedIssue(issue) {
+                if (await this.apiCall(`/api/issues/${issue.id}`, 'PUT', issue)) { 
+                    this.showNotification(`'${issue.name}' updated.`, 'success');
+                    this.refreshPatientData(this.selectedPatient.id);
+                }
+            },
+            async deleteTrackedIssue(issueId) {
+                if (confirm('Are you sure?')) {
+                    if (await this.apiCall(`/api/issues/${issueId}`, 'DELETE')) {
+                        this.showNotification('Issue deleted.', 'success');
+                        this.refreshPatientData(this.selectedPatient.id);
+                    }
+                }
+            },
+
+            async getSchedule() {
+                const data = await this.apiCall('/api/schedule');
+                if(data) this.schedule = data;
+            },
+            async addScheduleEvent() {
+                if (await this.apiCall('/api/schedule', 'POST', this.newScheduleEvent)) {
+                    this.getSchedule();
+                    this.newScheduleEvent = { title: '', time: '' };
+                }
+            },
+            async updateScheduleStatus(id, status) {
+                if (await this.apiCall(`/api/schedule/${id}`, 'PUT', { status })) { this.getSchedule(); }
+            },
+            async deleteScheduleEvent(id) {
+                if (await this.apiCall(`/api/schedule/${id}`, 'DELETE')) { this.getSchedule(); }
+            },
+            
+            formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                return new Date(date.getTime() + userTimezoneOffset).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+            },
+            formatDateTime(dateTimeString) {
+                if (!dateTimeString) return '';
+                return new Date(dateTimeString).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+            },
+            showNotification(message, type = 'success') {
+                this.notification.message = message;
+                this.notification.type = type;
+                this.notification.show = true;
+                setTimeout(() => { this.notification.show = false; }, 3000);
+            }
+        }
+    }
     </script>
 </body>
 </html>
